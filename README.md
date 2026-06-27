@@ -1,6 +1,6 @@
 # FabricPlots
 
-A **server-side**, PlotSquared-style plot world for **Fabric / Minecraft 26.1.2**, built for **Java + Bedrock
+A **server-side**, PlotSquared-style plot world for **Fabric / Minecraft 26.1.2 & 26.2**, built for **Java + Bedrock
 crossplay** (Geyser/Floodgate). Nothing is required on the client — Bedrock players use every command and menu
 through Geyser. Drop the jar on the server and you have a full creative plot server.
 
@@ -29,15 +29,15 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
 
 ## Requirements
 
-A Fabric server on **Minecraft 26.1.2** with, in the `mods/` folder:
+A Fabric server on **Minecraft 26.1.2 or 26.2** (see [Versions](#versions)) with, in the `mods/` folder:
 
 | Mod | Notes |
 |-----|-------|
 | `fabricplots-x.x.x.jar` | this mod |
-| `sgui-2.0.0+26.1.jar` | **required** — the clickable menus ([maven.nucleoid.xyz](https://maven.nucleoid.xyz)) |
-| Fabric API | `0.145.4+26.1.2` or newer |
+| **sgui** | **required** — the clickable menus ([maven.nucleoid.xyz](https://maven.nucleoid.xyz)). Use the build that matches your MC version (see Versions) |
+| Fabric API | the build for your MC version |
 
-For Bedrock players: **Geyser** + **Floodgate** (Geyser connects directly to 26.1.x — no ViaProxy).
+For Bedrock players: **Geyser** + **Floodgate** (Geyser connects directly to 26.1.x / 26.2 — no ViaProxy).
 
 See **[SERVER-SETUP.md](SERVER-SETUP.md)** for the full deployment guide (config table, first-run notes, admin tips).
 
@@ -61,8 +61,13 @@ Output: `build/libs/fabricplots-<version>.jar`.
 
 ## Versions
 
-- **26.1.2** — current.
-- **26.2** — planned (a tiny port; only a few renamed decorative blocks differ).
+Both supported Minecraft versions are tracked as branches — **identical features**, differing only in version
+numbers and a few renamed vanilla blocks:
+
+| Branch | Minecraft | Fabric API | sgui |
+|--------|-----------|------------|------|
+| [`main`](../../tree/main) | 26.1.2 | `0.145.4+26.1.2` | `2.0.0+26.1` |
+| [`26.2`](../../tree/26.2) | 26.2 | `0.153.0+26.2` | `2.1.0+26.2` |
 
 ## License
 
