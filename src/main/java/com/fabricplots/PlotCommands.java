@@ -531,7 +531,7 @@ public final class PlotCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             boolean admin = PlotProtection.isAdmin(p);
             boolean buildAdmin = PlotProtection.isBuildAdmin(p);
-            msg(ctx, "FabricPlots build 2026-06-26x · you are " + (admin ? "an OP" : "a normal player")
+            msg(ctx, "FabricPlots build 2026-06-26y · you are " + (admin ? "an OP" : "a normal player")
                     + (admin ? (buildAdmin ? " · build-admin mode ON (editing anywhere)" : " · build-admin mode OFF (own plots only — /plot admin to unlock)") : ""));
             return 1;
         } catch (Exception e) { return err(ctx, e); }

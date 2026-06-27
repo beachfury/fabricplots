@@ -116,11 +116,22 @@ public final class PortalManager {
             if (!(world instanceof ServerLevel level) || !(player instanceof ServerPlayer sp)) {
                 return keyPlot(held) != null ? InteractionResult.SUCCESS : InteractionResult.PASS;
             }
-            if (level.dimension() == FabricPlots.PLOTS_DIM) return InteractionResult.PASS; // built in the home world
+            final boolean flint = held.getItem() == Items.FLINT_AND_STEEL;
+            if (level.dimension() == FabricPlots.PLOTS_DIM) {
+                // In the plot world, flint & steel lights a RETURN portal (walk through → home world).
+                if (!flint) return InteractionResult.PASS;
+                if (PlotsConfig.plotWorldPortalAdminOnly && !PlotProtection.isAdmin(sp)) {
+                    msg(sp, "Only admins can build portals in the plot world.");
+                    return InteractionResult.SUCCESS; // consume so no fire is lit
+                }
+                boolean made = tryActivate(level, hit.getBlockPos(), hit.getDirection(), DestType.RETURN, null, sp);
+                return made ? InteractionResult.SUCCESS : InteractionResult.PASS;
+            }
+            // Home world: flint & steel → spawn-plaza portal, a Plot Key → that plot.
             PlotPos keyPlot = keyPlot(held);
-            boolean flint = held.getItem() == Items.FLINT_AND_STEEL;
             if (!flint && keyPlot == null) return InteractionResult.PASS;
-            boolean made = tryActivate(level, hit.getBlockPos(), hit.getDirection(), keyPlot, sp);
+            DestType type = keyPlot == null ? DestType.PLAZA : DestType.PLOT;
+            boolean made = tryActivate(level, hit.getBlockPos(), hit.getDirection(), type, keyPlot, sp);
             // Consume so flint & steel doesn't also light a fire; if no frame, let flint behave normally.
             return made ? InteractionResult.SUCCESS : (flint ? InteractionResult.PASS : InteractionResult.SUCCESS);
         });
@@ -134,29 +145,31 @@ public final class PortalManager {
         });
     }
 
-    private static boolean tryActivate(ServerLevel level, BlockPos clicked, Direction face, PlotPos keyPlot, ServerPlayer sp) {
+    private static boolean tryActivate(ServerLevel level, BlockPos clicked, Direction face, DestType type, PlotPos plot, ServerPlayer sp) {
         BlockPos[] seeds = { clicked.relative(face), clicked.above(), clicked };
         for (BlockPos seed : seeds) {
             if (!level.getBlockState(seed).isAir()) continue;
             if (ACTIVE.containsKey(seed)) continue; // already a live portal here
             for (Direction.Axis axis : new Direction.Axis[]{ Direction.Axis.X, Direction.Axis.Z }) {
                 FrameScan scan = scan(level, seed, axis);
-                if (scan != null) { activate(scan, keyPlot, sp, level.dimension()); return true; }
+                if (scan != null) { activate(scan, type, plot, sp, level.dimension()); return true; }
             }
         }
         return false;
     }
 
-    private static void activate(FrameScan scan, PlotPos keyPlot, ServerPlayer sp, ResourceKey<Level> dim) {
+    private static void activate(FrameScan scan, DestType type, PlotPos plot, ServerPlayer sp, ResourceKey<Level> dim) {
         // Replace any overlapping portal (re-lighting to change destination).
         for (BlockPos p : scan.interior()) { Portal old = ACTIVE.get(p); if (old != null) deactivate(old); }
-        Portal portal = new Portal(keyPlot == null ? DestType.PLAZA : DestType.PLOT, keyPlot,
-                scan.interior(), scan.frame(), dim);
+        Portal portal = new Portal(type, plot, scan.interior(), scan.frame(), dim);
         for (BlockPos p : scan.interior()) ACTIVE.put(p, portal);
         for (BlockPos p : scan.frame()) FRAMES.put(p, portal);
         save();
-        if (keyPlot == null) msg(sp, "Spawn-plaza portal lit. Walk through to enter the plot world.");
-        else msg(sp, "Portal to plot (" + keyPlot.px() + ", " + keyPlot.pz() + ") lit. Walk through to warp there.");
+        switch (type) {
+            case PLAZA -> msg(sp, "Spawn-plaza portal lit. Walk through to enter the plot world.");
+            case PLOT -> msg(sp, "Portal to plot (" + plot.px() + ", " + plot.pz() + ") lit. Walk through to warp there.");
+            case RETURN -> msg(sp, "Return portal lit. Walk through to head back to the home world.");
+        }
     }
 
     /** Scan for a rectangular calcite frame around {@code seed}; returns its interior + frame cells. */
