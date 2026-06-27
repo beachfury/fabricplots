@@ -10,7 +10,9 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.commands.arguments.blocks.BlockStateArgument;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -296,14 +298,91 @@ public final class PlotCommands {
         } catch (Exception e) { return err(ctx, e); }
     }
 
+    private static final int CLR_TEAL = 0x1ABC9C, CLR_YELLOW = 0xFFE066, CLR_PURPLE = 0xC792EA;
+
     private static int help(CommandContext<CommandSourceStack> ctx) {
-        msg(ctx, "FabricPlots commands:");
-        msg(ctx, "Basics — /plot world · claim · auto · home · visit <p> · info · leave · menu");
-        msg(ctx, "Manage — name <n> · sethome · trust/untrust <p> · deny/undeny <p> · clear · delete · key");
-        msg(ctx, "Build — edit (GUI) · pos1/pos2 · set/replace · walls · sphere/hsphere/cyl · copy/cut/paste · stack/move · undo/redo");
-        msg(ctx, "Combine — wand · combine <p> · uncombine");
-        msg(ctx, "Admin — admin · setspawn · setowner/setserver · removeall · repaint · portals · reload");
+        CommandSourceStack src = ctx.getSource();
+        src.sendSuccess(() -> Component.literal("FabricPlots").withStyle(s -> s.withColor(CLR_TEAL))
+                .append(Component.literal(" — commands (click one to fill it in)").withStyle(s -> s.withColor(CLR_PURPLE))), false);
+
+        section(src, "Getting around");
+        line(src, "/plot world", "go to the plot world");
+        line(src, "/plot menu", "open the menu");
+        line(src, "/plot home", "go to your plot");
+        line(src, "/plot visit <player>", "visit a player's plot");
+        line(src, "/plot leave", "return to the home world");
+
+        section(src, "Claiming");
+        line(src, "/plot auto", "claim the next free plot");
+        line(src, "/plot claim", "claim the plot you're standing in");
+        line(src, "/plot info", "info about this plot");
+        line(src, "/plot key", "get a portal key for this plot");
+        line(src, "/plot delete", "release this plot");
+
+        section(src, "Your plot");
+        line(src, "/plot name <name>", "name this plot");
+        line(src, "/plot sethome", "set where /plot home lands");
+        line(src, "/plot trust <player>", "let someone build here");
+        line(src, "/plot untrust <player>", "remove a trusted player");
+        line(src, "/plot deny <player>", "ban a player from this plot");
+        line(src, "/plot undeny <player>", "un-ban a player");
+        line(src, "/plot clear", "reset this plot to flat ground");
+
+        section(src, "Building");
+        line(src, "/plot edit", "open the build GUI");
+        line(src, "/plot editwand", "get the selection wand");
+        line(src, "/plot pos1", "set selection corner 1");
+        line(src, "/plot pos2", "set selection corner 2");
+        line(src, "/plot set <block>", "fill the selection");
+        line(src, "/plot replace <from> <to>", "replace blocks in the selection");
+        line(src, "/plot walls <block>", "build walls around the selection");
+        line(src, "/plot sphere <block> <radius>", "build a sphere");
+        line(src, "/plot hsphere <block> <radius>", "build a hollow sphere");
+        line(src, "/plot cyl <block> <radius> [height]", "build a cylinder");
+        line(src, "/plot copy", "copy the selection");
+        line(src, "/plot cut", "cut the selection");
+        line(src, "/plot paste", "paste here");
+        line(src, "/plot stack <count>", "stack the selection");
+        line(src, "/plot move <count>", "move the selection");
+        line(src, "/plot undo", "undo the last edit");
+        line(src, "/plot redo", "redo");
+
+        if (isOpSource(ctx)) {
+            section(src, "Admin");
+            line(src, "/plot admin", "toggle build-admin mode");
+            line(src, "/plot setspawn", "set the plot-world spawn");
+            line(src, "/plot wand", "get the combine wand");
+            line(src, "/plot combine <player>", "merge selected plots");
+            line(src, "/plot uncombine", "split a merged plot");
+            line(src, "/plot setowner <player>", "transfer this plot");
+            line(src, "/plot setserver", "make this plot server-owned");
+            line(src, "/plot removeall <player>", "free all of a player's plots");
+            line(src, "/plot repaint", "repaint nearby roads");
+            line(src, "/plot portals", "rebuild exit portals");
+            line(src, "/plot reload", "reload the config");
+        }
         return 1;
+    }
+
+    private static void section(CommandSourceStack src, String title) {
+        src.sendSuccess(() -> Component.literal(title).withStyle(s -> s.withColor(CLR_PURPLE).applyFormat(ChatFormatting.BOLD)), false);
+    }
+
+    /** One help line: yellow, clickable command (clicking fills it in chat) + a purple description. */
+    private static void line(CommandSourceStack src, String command, String desc) {
+        int cut = command.length();
+        int lt = command.indexOf('<'), br = command.indexOf('[');
+        if (lt >= 0) cut = lt;
+        if (br >= 0 && br < cut) cut = br;
+        final String suggest = command.substring(0, cut); // drop <args>/[args] from what gets typed
+        src.sendSuccess(() -> Component.literal("  " + command)
+                .withStyle(s -> s.withColor(CLR_YELLOW).withClickEvent(new ClickEvent.SuggestCommand(suggest)))
+                .append(Component.literal("   " + desc).withStyle(s -> s.withColor(CLR_PURPLE))), false);
+    }
+
+    private static boolean isOpSource(CommandContext<CommandSourceStack> ctx) {
+        try { return isOp(ctx, ctx.getSource().getPlayerOrException()); }
+        catch (Exception e) { return true; } // console / command block sees everything
     }
 
     private static int menu(CommandContext<CommandSourceStack> ctx) {
@@ -452,7 +531,7 @@ public final class PlotCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             boolean admin = PlotProtection.isAdmin(p);
             boolean buildAdmin = PlotProtection.isBuildAdmin(p);
-            msg(ctx, "FabricPlots build 2026-06-26w · you are " + (admin ? "an OP" : "a normal player")
+            msg(ctx, "FabricPlots build 2026-06-26x · you are " + (admin ? "an OP" : "a normal player")
                     + (admin ? (buildAdmin ? " · build-admin mode ON (editing anywhere)" : " · build-admin mode OFF (own plots only — /plot admin to unlock)") : ""));
             return 1;
         } catch (Exception e) { return err(ctx, e); }
