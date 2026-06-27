@@ -48,6 +48,22 @@ See **[SERVER-SETUP.md](SERVER-SETUP.md)** for the full deployment guide (config
 3. Walk into an empty plot → `/plot claim`. Type `/plot help` in-game for the full command list, or `/plot menu`
    for the GUI.
 
+## Keeping plot items separate (recommended)
+
+FabricPlots does **not** isolate inventories on its own — by default, items carry between the plot world and your
+other worlds, so players could bring creative items out of the plot world. To prevent that, pair it with a
+per-dimension inventory mod such as **[Dimensional Inventories](https://modrinth.com/mod/dimensional-inventories)**
+and put the plot dimension in its own pool:
+
+```
+/diminv pool plots create
+/diminv pool plots dimension fabricplots:plots assign
+/diminv pool plots gamemode creative
+```
+
+Now the plot world keeps its own inventory (and gamemode) — creative items stay in the plot world, and your main
+world keeps its own items.
+
 ## Building from source
 
 Requires **JDK 25**. Minecraft 26.x ships unobfuscated (official Mojang names, no `mappings` line; uses the `jar`
