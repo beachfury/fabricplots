@@ -3,9 +3,15 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
-## [0.1.0] — initial release (Minecraft 26.1.2)
+## [0.1.0] — initial release (Minecraft 26.1.2 & 26.2)
 
-The first complete, feature-rich release. Grouped by area:
+The first complete, feature-rich release.
+
+**Minecraft versions** — tracked as two branches with identical features: **26.1.2** on `main`, **26.2** on the
+`26.2` branch. They differ only in version numbers and a handful of renamed vanilla blocks (26.2 collapsed the
+per-colour blocks into `ColorCollection`, e.g. `BLACK_CONCRETE` → `CONCRETE.black()`).
+
+Grouped by area:
 
 ### Plot world & claiming
 - Bundled flat creative dimension `fabricplots:plots` with a gridded street network (roads, sidewalks, corner
