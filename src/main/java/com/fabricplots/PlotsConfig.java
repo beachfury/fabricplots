@@ -28,6 +28,7 @@ public final class PlotsConfig {
     public static volatile boolean protectProjectiles = true; // stop arrows/etc. breaking blocks
     public static volatile boolean inactivityExpiry = false;  // auto-release plots of long-absent owners
     public static volatile int inactivityDays = 30;           // days of inactivity before release
+    public static volatile boolean plotWorldPortalAdminOnly = true; // who may light return portals in the plot world
     public static volatile int spawnX = PlotConfig.SPAWN_X;   // plot-world spawn (set with /plot setspawn)
     public static volatile int spawnY = PlotConfig.FLOOR_Y;
     public static volatile int spawnZ = PlotConfig.SPAWN_Z;
@@ -59,6 +60,7 @@ public final class PlotsConfig {
         protectProjectiles = bool(p, "protect-projectiles", protectProjectiles);
         inactivityExpiry = bool(p, "inactivity-expiry", inactivityExpiry);
         inactivityDays = Math.max(1, inted(p, "inactivity-days", inactivityDays));
+        plotWorldPortalAdminOnly = bool(p, "plot-world-portal-admin-only", plotWorldPortalAdminOnly);
         spawnX = inted(p, "spawn-x", spawnX);
         spawnY = inted(p, "spawn-y", spawnY);
         spawnZ = inted(p, "spawn-z", spawnZ);
@@ -83,6 +85,7 @@ public final class PlotsConfig {
         p.setProperty("protect-projectiles", Boolean.toString(protectProjectiles));
         p.setProperty("inactivity-expiry", Boolean.toString(inactivityExpiry));
         p.setProperty("inactivity-days", Integer.toString(inactivityDays));
+        p.setProperty("plot-world-portal-admin-only", Boolean.toString(plotWorldPortalAdminOnly));
         p.setProperty("spawn-x", Integer.toString(spawnX));
         p.setProperty("spawn-y", Integer.toString(spawnY));
         p.setProperty("spawn-z", Integer.toString(spawnZ));
