@@ -3,7 +3,8 @@ plugins {
     id 'java'
 }
 
-version = project.mod_version
+// Jar name carries the Minecraft target, e.g. fabricplots-0.1.0+26.1.2.jar (Fabric convention).
+version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
 base {
