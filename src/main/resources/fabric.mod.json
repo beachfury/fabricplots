@@ -6,6 +6,7 @@
   "description": "Server-side PlotSquared-style plot worlds for Fabric. Crossplay-ready (Geyser/Bedrock) — no client mod required.",
   "authors": ["BeachFury"],
   "license": "MIT",
+  "icon": "assets/fabricplots/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": ["com.fabricplots.FabricPlots"]
