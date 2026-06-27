@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.HashMap;
@@ -53,7 +54,7 @@ public final class PlotEditGui {
         gui.setSlot(9, btn(Items.STONE, "Fill selection (held block)", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.set(sp, level, bs))));
         gui.setSlot(10, btn(Items.BRICKS, "Walls around selection", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.walls(sp, level, bs))));
         gui.setSlot(12, btn(Items.SNOWBALL, "Sphere (r=" + amt + ")", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.sphere(sp, level, bs, amount(id), false))));
-        gui.setSlot(13, btn(Items.WHITE_STAINED_GLASS, "Hollow sphere (r=" + amt + ")", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.sphere(sp, level, bs, amount(id), true))));
+        gui.setSlot(13, btn(Blocks.STAINED_GLASS.white().asItem(), "Hollow sphere (r=" + amt + ")", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.sphere(sp, level, bs, amount(id), true))));
         gui.setSlot(14, btn(Items.BAMBOO, "Cylinder (r=h=" + amt + ")", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.cylinder(sp, level, bs, amount(id), amount(id)))));
 
         // Row 3 — amount knob + transforms.

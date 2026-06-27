@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * middle row. Deterministic from world coords (gen == repaint).
  */
 public final class PlotWorldPainter {
-    private static final BlockState ROAD = Blocks.BLACK_CONCRETE.defaultBlockState();
+    private static final BlockState ROAD = Blocks.CONCRETE.black().defaultBlockState();
     private static final BlockState DASH = Blocks.SMOOTH_QUARTZ.defaultBlockState();
     private static final BlockState SIDEWALK = Blocks.CHISELED_TUFF_BRICKS.defaultBlockState();
     private static final BlockState CURB = Blocks.STONE.defaultBlockState();

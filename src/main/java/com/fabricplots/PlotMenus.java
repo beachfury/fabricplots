@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -92,12 +93,12 @@ public final class PlotMenus {
     private static void confirmClear(ServerPlayer sp, PlotPos anchor) {
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
         g.setTitle(Component.literal("Clear this plot?"));
-        g.setSlot(11, btn(Items.LIME_CONCRETE, "Yes, clear it", "Wipes the whole plot to flat ground.", (i, t, a, gg) -> {
+        g.setSlot(11, btn(Blocks.CONCRETE.lime().asItem(), "Yes, clear it", "Wipes the whole plot to flat ground.", (i, t, a, gg) -> {
             PlotData d = PlotManager.get(anchor);
             if (d != null) { PlotWorldPainter.clearPlot(plots(sp), d); sp.sendSystemMessage(Component.literal("[Plots] Plot cleared.")); }
             settings(sp, anchor);
         }));
-        g.setSlot(15, btn(Items.RED_CONCRETE, "No, go back", "", (i, t, a, gg) -> settings(sp, anchor)));
+        g.setSlot(15, btn(Blocks.CONCRETE.red().asItem(), "No, go back", "", (i, t, a, gg) -> settings(sp, anchor)));
         g.open();
     }
 
