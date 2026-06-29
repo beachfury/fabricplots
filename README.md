@@ -64,6 +64,11 @@ and put the plot dimension in its own pool:
 Now the plot world keeps its own inventory (and gamemode) — creative items stay in the plot world, and your main
 world keeps its own items.
 
+> **Portal Keys & separated inventories:** because the key would otherwise be stripped when you leave the plot
+> world, run **`/plot key` at your base in the main world** (or use the **Portal Keys** button in `/plot menu`) — it
+> gives you a key for every plot you own, created right in your main-world inventory. `/plot menu` and `/plot list`
+> also open from any world.
+
 ## Building from source
 
 Requires **JDK 25**. Minecraft 26.x ships unobfuscated (official Mojang names, no `mappings` line; uses the `jar`

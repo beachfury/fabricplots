@@ -34,9 +34,27 @@ public final class PlotMenus {
     public static void hub(ServerPlayer sp) {
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
         g.setTitle(Component.literal("FabricPlots"));
-        g.setSlot(11, btn(Items.GRASS_BLOCK, "My Plots", "Browse and manage the plots you own.", (i, t, a, gg) -> myPlots(sp, 0)));
-        g.setSlot(13, btn(Items.DIAMOND_PICKAXE, "Build Editor", "Set, replace, shapes, copy/paste.", (i, t, a, gg) -> PlotEditGui.open(sp)));
-        g.setSlot(15, btn(Items.ENDER_PEARL, "Go to Spawn", "Teleport to the plot-world spawn.", (i, t, a, gg) -> {
+        g.setSlot(10, btn(Items.GRASS_BLOCK, "My Plots", "Browse and manage the plots you own.", (i, t, a, gg) -> myPlots(sp, 0)));
+        g.setSlot(12, btn(Items.DIAMOND_PICKAXE, "Build Editor", "Set, replace, shapes, copy/paste. (Plot world only.)", (i, t, a, gg) -> {
+            if (sp.level().dimension() != FabricPlots.PLOTS_DIM) {
+                sp.sendSystemMessage(Component.literal("Go to the plot world to use the Build Editor — try Go to Spawn."));
+                g.close();
+            } else PlotEditGui.open(sp);
+        }));
+        g.setSlot(14, btn(Items.RECOVERY_COMPASS, "Portal Keys", "A key for each plot you own — usable at your base.", (i, t, a, gg) -> {
+            g.close();
+            int n = 0;
+            for (PlotData d : PlotManager.allPlots()) {
+                if (d.owner.equals(sp.getUUID()) && !d.cells.isEmpty()) {
+                    sp.addItem(PortalManager.createKey(d.cells.iterator().next()));
+                    n++;
+                }
+            }
+            sp.sendSystemMessage(Component.literal(n == 0
+                ? "You don't own a plot yet. Use /plot auto to claim one."
+                : "Added " + n + " Portal Key" + (n == 1 ? "" : "s") + " — build a calcite frame at your base and right-click with one."));
+        }));
+        g.setSlot(16, btn(Items.ENDER_PEARL, "Go to Spawn", "Teleport to the plot-world spawn.", (i, t, a, gg) -> {
             sp.teleportTo(plots(sp), PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5, Set.of(), sp.getYRot(), 0f, false);
             g.close();
         }));

@@ -3,6 +3,23 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.1] — 2026-06-29
+
+Quality-of-life fixes for servers that separate inventories per world.
+
+### Changed
+- **`/plot key` now works from anywhere.** Standing on a plot in the plot world still gives that plot's key; run it
+  **outside the plot world (e.g. at your base)** and it hands you a key for **every plot you own**, created directly
+  in your current inventory. This fixes the key being stripped by per-world inventory mods (e.g. **Dimensional
+  Inventories**) when leaving the plot world.
+- **`/plot menu` and `/plot list` open from any world** — the plot hub is your front door from your base now, not
+  just inside the plot world. Location/build commands (claim, setspawn, the build tools, the in-plot editor) stay
+  plot-world-only, as they act on where you stand.
+
+### Added
+- **Portal Keys** button in the `/plot menu` hub — grabs a key for each plot you own (handy from your base). The
+  **Build Editor** hub button now redirects politely if you open it outside the plot world.
+
 ## [0.1.0] — initial release (Minecraft 26.1.2 & 26.2)
 
 The first complete, feature-rich release.
