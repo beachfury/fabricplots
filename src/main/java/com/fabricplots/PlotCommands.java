@@ -316,7 +316,7 @@ public final class PlotCommands {
         line(src, "/plot auto", "claim the next free plot");
         line(src, "/plot claim", "claim the plot you're standing in");
         line(src, "/plot info", "info about this plot");
-        line(src, "/plot key", "get a portal key for this plot");
+        line(src, "/plot key", "get your plot's portal key (run it at your base)");
         line(src, "/plot delete", "release this plot");
 
         section(src, "Your plot");
@@ -563,15 +563,29 @@ public final class PlotCommands {
     private static int key(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Stand on your plot in the plot world to get its portal key."); return 0; }
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null) { msg(ctx, "That plot is unclaimed."); return 0; }
-            if (!d.owner.equals(p.getUUID()) && !d.trusted.contains(p.getUUID()) && !isOp(ctx, p)) {
-                msg(ctx, "That isn't your plot."); return 0;
+            // In the plot world, standing on a plot you may use: give that one plot's key.
+            if (p.level().dimension() == FabricPlots.PLOTS_DIM) {
+                PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
+                PlotData d = PlotManager.get(pp);
+                if (d != null && (d.owner.equals(p.getUUID()) || d.trusted.contains(p.getUUID()) || isOp(ctx, p))) {
+                    p.addItem(PortalManager.createKey(pp));
+                    msg(ctx, "Here's your Portal Key. Build a calcite frame at your base and right-click inside it with this.");
+                    return 1;
+                }
             }
-            p.addItem(PortalManager.createKey(pp));
-            msg(ctx, "Here's your Portal Key. Build a calcite frame at your base and right-click inside it with this.");
+            // Anywhere else (e.g. at your base in the main world) hand out a key for every plot
+            // you own. Created here, in the destination inventory, so per-world inventory mods
+            // (Dimensional Inventories, etc.) can't strip it on the way out of the plot world.
+            int n = 0;
+            for (PlotData d : PlotManager.allPlots()) {
+                if (d.owner.equals(p.getUUID()) && !d.cells.isEmpty()) {
+                    p.addItem(PortalManager.createKey(d.cells.iterator().next()));
+                    n++;
+                }
+            }
+            if (n == 0) { msg(ctx, "You don't own a plot yet. Use /plot auto to claim one."); return 0; }
+            msg(ctx, "Added " + n + " Portal Key" + (n == 1 ? "" : "s") + " for your plot" + (n == 1 ? "" : "s")
+                + ". Build a calcite frame at your base and right-click inside it with one.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
