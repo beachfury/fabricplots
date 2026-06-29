@@ -388,8 +388,7 @@ public final class PlotCommands {
     private static int menu(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Open the menu in the plot world."); return 0; }
-            PlotMenus.hub(p);
+            PlotMenus.hub(p); // opens from anywhere — the plot hub is your front door from your base
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -397,8 +396,7 @@ public final class PlotCommands {
     private static int listPlots(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Open this in the plot world."); return 0; }
-            PlotMenus.myPlots(p, 0);
+            PlotMenus.myPlots(p, 0); // opens from anywhere
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
