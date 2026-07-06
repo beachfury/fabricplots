@@ -26,9 +26,10 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   `hsphere`, `cyl`, `copy`, `cut`, `paste`, `stack`, `move`, `undo`, `redo` — every block written is
   ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing risk, no WorldEdit
   region setup.
-- **Clickable menus (sgui, crossplay)** — `/plot menu` (hub with My Plots, Build Editor, Portal Keys, Top Plots),
-  `/plot edit` (build GUI; material = the block in your hand), and per-plot settings: rename, floor-block picker,
-  PvP toggle, and trusted/denied management with player heads + name search.
+- **Clickable menus (sgui, crossplay)** — `/plot menu` (hub with **Claim a Plot**, My Plots, Build Editor, Portal
+  Keys, Top Plots), `/plot edit` (build GUI; material = the block in your hand), and per-plot settings: rename,
+  floor-block picker, PvP toggle, and trusted/denied management with player heads + name search. Claiming works
+  from the menu too — no commands required.
 - **Config & protection** — live-reloadable `config/fabricplots.properties`: time/weather toggles, explosion /
   fire / mob-griefing / projectile protection, inactivity expiry, spawn point, and more.
 - **Admin safety** — ops are not auto-exempt; an op runs `/plot admin` to *opt in* to editing outside their own

@@ -37,6 +37,9 @@ public final class PlotMenus {
     public static void hub(ServerPlayer sp) {
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
         g.setTitle(Component.literal("FabricPlots"));
+        g.setSlot(4, btn(Items.EMERALD, "Claim a Plot",
+                "Claim the plot you're standing on, or grab the next free one and warp there.",
+                (i, t, a, gg) -> claimAction(sp)));
         g.setSlot(10, btn(Items.GRASS_BLOCK, "My Plots", "Browse and manage the plots you own.", (i, t, a, gg) -> myPlots(sp, 0)));
         g.setSlot(12, btn(Items.DIAMOND_PICKAXE, "Build Editor", "Set, replace, shapes, copy/paste. (Plot world only.)", (i, t, a, gg) -> {
             if (sp.level().dimension() != FabricPlots.PLOTS_DIM) {
@@ -86,8 +89,19 @@ public final class PlotMenus {
                     .setCallback((x, t, a, gg) -> settings(sp, anchor)).build());
         }
         nav(g, page, start + PER_PAGE < owned.size(), p -> myPlots(sp, p), () -> hub(sp));
-        if (owned.isEmpty()) g.setSlot(22, info(Items.BARRIER, "No plots yet", "Walk into an empty plot and /plot claim."));
+        g.setSlot(47, btn(Items.EMERALD, "+ Claim a plot", "Claim where you stand, or the next free plot.", (i, t, a, gg) -> claimAction(sp)));
+        if (owned.isEmpty()) g.setSlot(22, info(Items.BARRIER, "No plots yet", "Click '+ Claim a plot' below, or walk onto an empty plot first."));
         g.open();
+    }
+
+    /** GUI claim: claim the unclaimed plot you're standing on, else auto-claim the next free plot. Reuses the commands. */
+    private static void claimAction(ServerPlayer sp) {
+        sp.closeContainer();
+        boolean here = sp.level().dimension() == FabricPlots.PLOTS_DIM
+                && PlotManager.isInsidePlot(sp.getBlockX(), sp.getBlockZ())
+                && !PlotManager.isClaimed(PlotManager.plotAt(sp.getBlockX(), sp.getBlockZ()));
+        var server = sp.level().getServer();
+        if (server != null) server.getCommands().performPrefixedCommand(sp.createCommandSourceStack(), here ? "plot claim" : "plot auto");
     }
 
     // ---- one plot's settings ---------------------------------------------
