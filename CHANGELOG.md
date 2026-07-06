@@ -3,6 +3,21 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.2] — 2026-07-06
+
+Portal travel fixes.
+
+### Fixed
+- **No fall damage when returning to your home world.** Stepping back out of a plot-world portal now drops you at the
+  **base** of the frame (previously it could place you partway up a tall portal) and clears any leftover fall speed,
+  so you never take arrival damage. Fall speed/momentum is also cleared when entering the plot world.
+
+### Changed
+- **Your game mode now carries across the portal.** Entering the plot world still switches you to creative to build;
+  **leaving restores the mode you arrived with** — a creative admin returns to creative, everyone else returns to
+  survival — instead of forcing survival on everyone. (Note: if you log out *inside* the plot world, the server can't
+  know your prior mode, so on your next exit it defaults to survival.)
+
 ## [0.1.1] — 2026-06-29
 
 Quality-of-life fixes for servers that separate inventories per world.

@@ -36,6 +36,9 @@ public final class FabricPlots implements ModInitializer {
     // world-change event, so we poll once per server tick instead.
     private static final Map<UUID, ResourceKey<Level>> LAST_DIM = new HashMap<>();
     private static final Map<UUID, PlotData> LAST_PLOT = new HashMap<>();
+    // The game mode a player had BEFORE entering the plot world, so we can restore it on the way out
+    // (a creative admin comes back to creative; everyone else to survival).
+    private static final Map<UUID, GameType> PRE_PLOT_MODE = new HashMap<>();
     private static int mobScanTick = 0;
 
     @Override
@@ -132,13 +135,17 @@ public final class FabricPlots implements ModInitializer {
                 LAST_PLOT.remove(p.getUUID());
             }
 
-            // "Own rules": creative inside the plots world, survival outside.
+            // "Own rules": creative inside the plots world; restore your prior mode outside.
             ResourceKey<Level> prev = LAST_DIM.put(p.getUUID(), dim);
             if (dim == prev) continue; // ResourceKeys are interned
             if (dim == PLOTS_DIM) {
+                // Remember what they had before we force creative, so it can be restored on exit.
+                PRE_PLOT_MODE.put(p.getUUID(), p.gameMode.getGameModeForPlayer());
                 p.setGameMode(GameType.CREATIVE);
             } else if (prev == PLOTS_DIM) {
-                p.setGameMode(GameType.SURVIVAL);
+                // Restore the mode they entered with (creative admin -> creative, others -> survival).
+                GameType restore = PRE_PLOT_MODE.remove(p.getUUID());
+                p.setGameMode(restore == null ? GameType.SURVIVAL : restore);
             }
         }
 
