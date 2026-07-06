@@ -4,6 +4,7 @@ import eu.pb4.sgui.api.elements.GuiElement;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.AnvilInputGui;
 import eu.pb4.sgui.api.gui.SimpleGui;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -13,6 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 
 import java.util.ArrayList;
@@ -114,7 +116,7 @@ public final class PlotMenus {
         g.setSlot(10, btn(Items.NAME_TAG, "Rename plot", "Currently: " + (d.name.isBlank() ? "(unnamed)" : d.name), (i, t, a, gg) ->
                 anvil(sp, "Plot name", d.name, txt -> { d.name = txt; PlotManager.save(); settings(sp, anchor); })));
         g.setSlot(11, btn(floorItem(d), "Floor block", "Currently: " + floorName(d) + ". Click to recolor your plot's ground.",
-                (i, t, a, gg) -> floorPicker(sp, anchor)));
+                (i, t, a, gg) -> floorPicker(sp, anchor, 0)));
         g.setSlot(12, btn(Items.PLAYER_HEAD, "Trusted (" + d.trusted.size() + ")", "People who can build here.", (i, t, a, gg) -> members(sp, anchor, false, 0)));
         g.setSlot(13, btn(Items.IRON_BARS, "Denied (" + d.denied.size() + ")", "People banned from this plot.", (i, t, a, gg) -> members(sp, anchor, true, 0)));
         g.setSlot(14, btn(Items.ENDER_PEARL, "Teleport here", "Go to this plot.", (i, t, a, gg) -> {
@@ -207,38 +209,69 @@ public final class PlotMenus {
 
     // ---- floor block picker ----------------------------------------------
 
-    /** A color-safe palette of floor blocks, addressed by registry id so it compiles on 26.1.2 and 26.2 alike. */
-    private static final String[] FLOOR_PALETTE = {
-            "minecraft:grass_block", "minecraft:dirt", "minecraft:coarse_dirt", "minecraft:podzol", "minecraft:mycelium",
-            "minecraft:moss_block", "minecraft:sand", "minecraft:red_sand", "minecraft:gravel", "minecraft:snow_block",
-            "minecraft:stone", "minecraft:smooth_stone", "minecraft:stone_bricks", "minecraft:cobblestone", "minecraft:mossy_cobblestone",
-            "minecraft:andesite", "minecraft:diorite", "minecraft:granite", "minecraft:deepslate_bricks", "minecraft:blackstone",
-            "minecraft:sandstone", "minecraft:smooth_sandstone", "minecraft:red_sandstone", "minecraft:quartz_block", "minecraft:smooth_quartz",
-            "minecraft:bricks", "minecraft:prismarine", "minecraft:prismarine_bricks", "minecraft:dark_prismarine", "minecraft:purpur_block",
-            "minecraft:white_concrete", "minecraft:light_gray_concrete", "minecraft:gray_concrete", "minecraft:black_concrete",
-            "minecraft:red_concrete", "minecraft:orange_concrete", "minecraft:yellow_concrete", "minecraft:lime_concrete",
-            "minecraft:green_concrete", "minecraft:cyan_concrete", "minecraft:light_blue_concrete", "minecraft:blue_concrete",
-            "minecraft:purple_concrete", "minecraft:pink_concrete"
-    };
+    // A handful of technical full-cube blocks we don't want offered as floors.
+    private static final Set<String> FLOOR_EXCLUDE = Set.of(
+            "minecraft:command_block", "minecraft:chain_command_block", "minecraft:repeating_command_block",
+            "minecraft:structure_block", "minecraft:jigsaw", "minecraft:barrier", "minecraft:light",
+            "minecraft:moving_piston", "minecraft:spawner", "minecraft:trial_spawner", "minecraft:vault");
 
-    public static void floorPicker(ServerPlayer sp, PlotPos anchor) {
+    private static volatile List<String> floorPaletteCache = null;
+
+    /**
+     * Every full-cube ("square") block in the registry that has an item — built once from the live registry,
+     * so it automatically includes version-specific blocks (e.g. 26.2's sulfur / cinnabar). Sorted by id.
+     */
+    private static List<String> floorPalette() {
+        List<String> cached = floorPaletteCache;
+        if (cached != null) return cached;
+        List<String> out = new ArrayList<>();
+        for (Block b : BuiltInRegistries.BLOCK) {
+            try {
+                if (b.asItem() == Items.AIR) continue; // no obtainable item
+                if (!b.defaultBlockState().isCollisionShapeFullBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)) continue;
+                String id = BuiltInRegistries.BLOCK.getKey(b).toString();
+                if (FLOOR_EXCLUDE.contains(id)) continue;
+                out.add(id);
+            } catch (Throwable ignored) { /* skip any odd block */ }
+        }
+        out.sort(null); // alphabetical by id
+        floorPaletteCache = out;
+        return out;
+    }
+
+    public static void floorPicker(ServerPlayer sp, PlotPos anchor, int page) {
         PlotData d = PlotManager.get(anchor);
         if (d == null || (!d.owner.equals(sp.getUUID()) && !PlotProtection.isAdmin(sp))) { sp.closeContainer(); return; }
+        List<String> palette = floorPalette();
+        int pages = Math.max(1, (palette.size() + PER_PAGE - 1) / PER_PAGE);
+        if (page < 0) page = 0;
+        if (page >= pages) page = pages - 1;
+        final int pg = page;
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x6, sp, false);
-        g.setTitle(Component.literal("Floor block"));
-        for (int i = 0; i < FLOOR_PALETTE.length && i < 45; i++) {
-            final String id = FLOOR_PALETTE[i];
+        g.setTitle(Component.literal("Floor block  (" + (pg + 1) + "/" + pages + ")"));
+        int start = pg * PER_PAGE;
+        int end = Math.min(palette.size(), start + PER_PAGE);
+        int slot = 0;
+        for (int idx = start; idx < end; idx++) {
+            final String id = palette.get(idx);
             boolean chosen = id.equals(d.floorBlockId) || (d.floorBlockId.isBlank() && id.equals("minecraft:grass_block"));
-            g.setSlot(i, new GuiElementBuilder(itemOf(id))
+            g.setSlot(slot++, new GuiElementBuilder(itemOf(id))
                     .setName(Component.literal(prettyName(id) + (chosen ? "  ✔" : "")))
                     .setCallback((x, t, a, gg) -> {
                         d.floorBlockId = id.equals("minecraft:grass_block") ? "" : id; // grass == default
                         PlotManager.save();
                         PlotWorldPainter.applyFloor(plots(sp), d);
-                        floorPicker(sp, anchor);
+                        floorPicker(sp, anchor, pg);
                     }).build());
         }
+        // bottom row: paging + reset + back
+        if (pg > 0) g.setSlot(45, btn(Items.ARROW, "Previous page", "", (i, t, a, gg) -> floorPicker(sp, anchor, pg - 1)));
+        g.setSlot(47, btn(Items.GRASS_BLOCK, "Default (grass)", "Reset to plain grass.", (i, t, a, gg) -> {
+            d.floorBlockId = ""; PlotManager.save(); PlotWorldPainter.applyFloor(plots(sp), d); floorPicker(sp, anchor, pg);
+        }));
         g.setSlot(49, btn(Items.BARRIER, "Back", "", (i, t, a, gg) -> settings(sp, anchor)));
+        g.setSlot(51, info(Items.PAPER, "Page " + (pg + 1) + " / " + pages, palette.size() + " blocks"));
+        if (pg < pages - 1) g.setSlot(53, btn(Items.ARROW, "Next page", "", (i, t, a, gg) -> floorPicker(sp, anchor, pg + 1)));
         g.open();
     }
 

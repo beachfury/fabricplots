@@ -3,6 +3,15 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.5] — 2026-07-06
+
+### Changed
+- **Floor picker now offers every full-cube block.** Instead of a fixed 44-block list, the floor palette is built
+  from the live block registry — every "square" block that has an item is selectable, across paginated screens
+  (Previous/Next). Because it reads the registry at runtime, version-specific blocks appear automatically — e.g.
+  **26.2's sulfur and cinnabar blocks** show up on the 26.2 build with no code changes. A few technical blocks
+  (command/structure/jigsaw/barrier/spawner/etc.) are excluded.
+
 ## [0.1.4] — 2026-07-06
 
 ### Added
