@@ -70,11 +70,30 @@ public final class PortalManager {
         final BlockPos anchor;              // a representative interior cell (return target)
         Portal(DestType type, PlotPos plot, Set<BlockPos> interior, Set<BlockPos> frame, ResourceKey<Level> dim) {
             this.type = type; this.plot = plot; this.interior = interior; this.frame = frame; this.dim = dim;
-            this.anchor = interior.iterator().next();
+            this.anchor = lowest(interior); // return to the BASE of the frame, never mid-air in a tall portal
         }
     }
 
     private record FrameScan(Set<BlockPos> interior, Set<BlockPos> frame) {}
+
+    /** The lowest interior cell (min Y, then X, then Z) — deterministic base of the frame. */
+    private static BlockPos lowest(Set<BlockPos> cells) {
+        BlockPos best = null;
+        for (BlockPos c : cells) {
+            if (best == null || c.getY() < best.getY()
+                    || (c.getY() == best.getY() && (c.getX() < best.getX()
+                    || (c.getX() == best.getX() && c.getZ() < best.getZ())))) {
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    /** Kill momentum + fall distance after a portal jump so you never take arrival damage. */
+    private static void settle(ServerPlayer p) {
+        p.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        p.resetFallDistance();
+    }
 
     // Keyed per cell so the per-tick lookups are O(1).
     private static final Map<BlockPos, Portal> ACTIVE = new ConcurrentHashMap<>();  // interior cell -> portal
@@ -275,11 +294,13 @@ public final class PortalManager {
         if (portal.type == DestType.PLAZA) {
             p.teleportTo(plots, PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5,
                     Set.of(), p.getYRot(), 0.0f, false);
+            settle(p);
             msg(p, "Welcome to the plot world! /plot leave to return to your portal.");
         } else {
             int[] xz = PlotManager.homeXZ(portal.plot);
             p.teleportTo(plots, xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5,
                     Set.of(), p.getYRot(), 0.0f, false);
+            settle(p);
             msg(p, "Warped to plot (" + portal.plot.px() + ", " + portal.plot.pz() + "). /plot leave to return.");
         }
     }
@@ -292,6 +313,7 @@ public final class PortalManager {
         if (dest == null) dest = server.overworld();
         BlockPos pos = ret == null ? dest.getRespawnData().pos() : ret.pos();
         p.teleportTo(dest, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, Set.of(), p.getYRot(), 0.0f, false);
+        settle(p); // no fall damage stepping out of the portal
         msg(p, "Returned to your home world.");
     }
 
