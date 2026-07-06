@@ -70,6 +70,7 @@ public final class PlotCommands {
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(PlotCommands::namePlot)))
                 .then(Commands.literal("leave").executes(PlotCommands::leave))
+                .then(Commands.literal("like").executes(PlotCommands::like))
                 .then(Commands.literal("key").executes(PlotCommands::key))
                 .then(Commands.literal("removeall")
                         .then(Commands.argument("player", GameProfileArgument.gameProfile())
@@ -183,7 +184,23 @@ public final class PlotCommands {
             msg(ctx, "Plot " + pp.px() + "," + pp.pz() + (d.name.isBlank() ? "" : " \"" + d.name + "\"")
                     + " — owner " + nameOf(ctx, d.owner)
                     + " · " + d.cells.size() + " cell" + (d.cells.size() == 1 ? "" : "s") + (d.isMerged() ? " (merged)" : "")
-                    + " · trusted " + d.trusted.size() + " · denied " + d.denied.size());
+                    + " · trusted " + d.trusted.size() + " · denied " + d.denied.size()
+                    + " · likes " + d.likes.size() + " · PvP " + (d.pvp ? "on" : "off"));
+            return 1;
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
+    /** Toggle your "like" on the plot you're standing on (you can't like your own plot). */
+    private static int like(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
+            PlotData d = PlotManager.get(pp);
+            if (d == null) { msg(ctx, "Stand on a plot to like it."); return 0; }
+            if (d.owner.equals(p.getUUID())) { msg(ctx, "You can't like your own plot."); return 0; }
+            if (d.likes.remove(p.getUUID())) msg(ctx, "Removed your like. This plot now has " + d.likes.size() + ".");
+            else { d.likes.add(p.getUUID()); msg(ctx, "Liked! This plot now has " + d.likes.size() + " like" + (d.likes.size() == 1 ? "" : "s") + "."); }
+            PlotManager.save();
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -310,6 +327,7 @@ public final class PlotCommands {
         line(src, "/plot menu", "open the menu");
         line(src, "/plot home", "go to your plot");
         line(src, "/plot visit <player>", "visit a player's plot");
+        line(src, "/plot like", "like the plot you're standing on");
         line(src, "/plot leave", "return to the home world");
 
         section(src, "Claiming");

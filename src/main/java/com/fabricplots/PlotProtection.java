@@ -1,6 +1,7 @@
 package com.fabricplots;
 
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
@@ -51,6 +52,17 @@ public final class PlotProtection {
             if (!(world instanceof ServerLevel)) return InteractionResult.PASS;
             if (!isPlots(world)) return InteractionResult.PASS;
             return allowed(player, pos) ? InteractionResult.PASS : InteractionResult.FAIL;
+        });
+
+        // PvP: in the plot world, block player-vs-player damage unless the victim is standing on a
+        // plot whose PvP flag is ON. Roads and pvp-off plots are safe.
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (!(world instanceof ServerLevel)) return InteractionResult.PASS;
+            if (!isPlots(world)) return InteractionResult.PASS;
+            if (!(player instanceof ServerPlayer) || !(entity instanceof ServerPlayer victim)) return InteractionResult.PASS;
+            if (player == victim) return InteractionResult.PASS;
+            PlotData plot = PlotManager.owningPlot(victim.getBlockX(), victim.getBlockZ());
+            return (plot != null && plot.pvp) ? InteractionResult.PASS : InteractionResult.FAIL;
         });
     }
 

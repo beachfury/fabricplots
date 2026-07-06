@@ -2,6 +2,8 @@ package com.fabricplots;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
@@ -152,7 +154,7 @@ public final class PlotWorldPainter {
                         && Math.floorMod(z, PlotConfig.STEP) < PlotConfig.PLOT_SIZE;
                 if (core && PlotManager.owningPlot(x, z) == merge) {
                     // Merged cell core → reset the WHOLE column top-to-bottom (clears towers AND tunnels).
-                    resetColumn(level, x, z, GRASS);
+                    resetColumn(level, x, z, surfaceFor(merge));
                 } else {
                     // Non-core: paintBase fills merged interior with grass, keeps perimeter as tuff/stair/road,
                     // and leaves any neighbouring (non-merged) plot cores untouched.
@@ -164,15 +166,46 @@ public final class PlotWorldPainter {
             for (int z = zStart; z <= zEnd; z++) decorate(x, z, setter);
     }
 
-    /** Wipe every column of a plot (all its cells) top-to-bottom back to the standard ground. */
-    public static int clearPlot(ServerLevel level, PlotData data) {
+    /** The surface block a plot's floor should use — the owner's chosen block, or grass by default. */
+    public static BlockState surfaceFor(PlotData data) {
+        if (data == null || data.floorBlockId == null || data.floorBlockId.isBlank()) return GRASS;
+        try {
+            Block b = BuiltInRegistries.BLOCK.getValue(Identifier.parse(data.floorBlockId));
+            return (b == null || b == Blocks.AIR) ? GRASS : b.defaultBlockState();
+        } catch (Exception e) {
+            return GRASS;
+        }
+    }
+
+    /**
+     * Repaint just the surface layer (GROUND_Y) of a plot's grass cores to the chosen floor block,
+     * leaving everything the owner built above it intact. Returns the number of columns painted.
+     */
+    public static int applyFloor(ServerLevel level, PlotData data) {
+        BlockState surface = surfaceFor(data);
         int columns = 0;
         for (PlotPos cell : data.cells) {
             final int baseX = cell.px() * PlotConfig.STEP;
             final int baseZ = cell.pz() * PlotConfig.STEP;
             for (int dx = 0; dx < PlotConfig.PLOT_SIZE; dx++)
                 for (int dz = 0; dz < PlotConfig.PLOT_SIZE; dz++) {
-                    resetColumn(level, baseX + dx, baseZ + dz, GRASS);
+                    setIfDiff(level, baseX + dx, PlotConfig.GROUND_Y, baseZ + dz, surface);
+                    columns++;
+                }
+        }
+        return columns;
+    }
+
+    /** Wipe every column of a plot (all its cells) top-to-bottom back to the standard ground. */
+    public static int clearPlot(ServerLevel level, PlotData data) {
+        BlockState surface = surfaceFor(data);
+        int columns = 0;
+        for (PlotPos cell : data.cells) {
+            final int baseX = cell.px() * PlotConfig.STEP;
+            final int baseZ = cell.pz() * PlotConfig.STEP;
+            for (int dx = 0; dx < PlotConfig.PLOT_SIZE; dx++)
+                for (int dz = 0; dz < PlotConfig.PLOT_SIZE; dz++) {
+                    resetColumn(level, baseX + dx, baseZ + dz, surface);
                     columns++;
                 }
         }

@@ -11,6 +11,12 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
 - **Claiming** — `/plot claim`, `/plot auto`, `/plot home`, `/plot visit`, per-player claim limits.
 - **Grief protection** — only the owner and trusted players build; roads and other plots are locked.
 - **Trust & deny** — `/plot trust` / `/plot deny` (deny bounces a player off your plot).
+- **Custom plot floor** — pick your plot's ground block from a 44-block GUI palette (grass, sand, stone, quartz,
+  all 16 concretes, and more). It recolors the surface instantly and survives `/plot clear`.
+- **Per-plot PvP toggle** — the plot world is safe by default; an owner can allow PvP on their own plot from the
+  settings menu (roads and other plots stay safe).
+- **Likes & Top Plots** — players `/plot like` a plot they're standing on (or use the GUI), and the **Top Plots**
+  gallery in `/plot menu` ranks every plot by likes so people can browse and visit the best builds.
 - **Plot merging, any shape** — an op (or players, if enabled) selects plots with a wand and merges them into
   L / T / H / + or solid shapes; roads dissolve and the curb wraps the new outline. `/plot uncombine` splits it back.
 - **Frame portals** — build a calcite frame at your base and light it: flint & steel → spawn, or a **Plot Portal
@@ -20,8 +26,9 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   `hsphere`, `cyl`, `copy`, `cut`, `paste`, `stack`, `move`, `undo`, `redo` — every block written is
   ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing risk, no WorldEdit
   region setup.
-- **Clickable menus (sgui, crossplay)** — `/plot menu` (hub), `/plot edit` (build GUI; material = the block in
-  your hand), per-plot settings, and trusted/denied management with player heads + name search.
+- **Clickable menus (sgui, crossplay)** — `/plot menu` (hub with My Plots, Build Editor, Portal Keys, Top Plots),
+  `/plot edit` (build GUI; material = the block in your hand), and per-plot settings: rename, floor-block picker,
+  PvP toggle, and trusted/denied management with player heads + name search.
 - **Config & protection** — live-reloadable `config/fabricplots.properties`: time/weather toggles, explosion /
   fire / mob-griefing / projectile protection, inactivity expiry, spawn point, and more.
 - **Admin safety** — ops are not auto-exempt; an op runs `/plot admin` to *opt in* to editing outside their own
