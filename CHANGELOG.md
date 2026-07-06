@@ -3,6 +3,14 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.4] — 2026-07-06
+
+### Added
+- **Claim a plot from the menu.** A new **Claim a Plot** button in the `/plot menu` hub (and a **+ Claim a plot**
+  button on the My Plots screen) — no commands needed. If you're standing on an unclaimed plot it claims that one;
+  otherwise it grabs the next free plot and warps you there, hands you the Portal Key, and builds the exit portal
+  (same as `/plot claim` / `/plot auto`). Fully crossplay.
+
 ## [0.1.3] — 2026-07-06
 
 New plot-customization and community features.
