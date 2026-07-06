@@ -112,8 +112,11 @@ public final class PlotManager {
         for (PlotPos c : cells) {
             PlotData single = new PlotData(d.owner, d.ownerName);
             single.name = d.name;
+            single.floorBlockId = d.floorBlockId;
+            single.pvp = d.pvp;
             single.trusted.addAll(d.trusted);
             single.denied.addAll(d.denied);
+            single.likes.addAll(d.likes);
             single.cells.add(c);
             PLOTS.put(c, single);
         }
@@ -217,6 +220,10 @@ public final class PlotManager {
                     String[] h = parts[6].split(":");
                     d.home = new net.minecraft.core.BlockPos(Integer.parseInt(h[0]), Integer.parseInt(h[1]), Integer.parseInt(h[2]));
                 }
+                if (parts.length > 7) d.floorBlockId = parts[7];
+                if (parts.length > 8 && !parts[8].isBlank()) d.pvp = Boolean.parseBoolean(parts[8].trim());
+                if (parts.length > 9 && !parts[9].isBlank())
+                    for (String u : parts[9].split(",")) if (!u.isBlank()) d.likes.add(UUID.fromString(u.trim()));
                 for (PlotPos c : d.cells) PLOTS.put(c, d);
             } catch (Exception e) {
                 System.err.println("[FabricPlots] Skipped bad plot line: " + line + " (" + e + ")");
@@ -241,8 +248,12 @@ public final class PlotManager {
             for (PlotPos c : d.cells) cj.add(c.px() + ":" + c.pz());
             StringJoiner dj = new StringJoiner(",");
             for (UUID dn : d.denied) dj.add(dn.toString());
+            StringJoiner lj = new StringJoiner(",");
+            for (UUID lk : d.likes) lj.add(lk.toString());
             String home = d.home == null ? "" : d.home.getX() + ":" + d.home.getY() + ":" + d.home.getZ();
-            lines.add(d.owner + ";" + d.ownerName + ";" + tj + ";" + cj + ";" + d.name + ";" + dj + ";" + home);
+            String floor = d.floorBlockId == null ? "" : d.floorBlockId;
+            lines.add(d.owner + ";" + d.ownerName + ";" + tj + ";" + cj + ";" + d.name + ";" + dj + ";" + home
+                    + ";" + floor + ";" + d.pvp + ";" + lj);
         }
         try {
             Files.write(saveFile, lines);

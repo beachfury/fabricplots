@@ -3,6 +3,21 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.3] — 2026-07-06
+
+New plot-customization and community features.
+
+### Added
+- **Custom plot floor.** A new **Floor block** button in the plot settings menu opens a 44-block palette (grass,
+  dirt, sand, stone/quartz/prismarine variants, and all 16 concrete colors). Picking one recolors your plot's
+  surface immediately, and the choice persists through `/plot clear`. The palette is addressed by block id, so it's
+  identical on 26.1.2 and 26.2.
+- **Per-plot PvP toggle.** The plot world is now PvP-safe by default. An owner can allow PvP on their own plot from
+  the settings menu (**PvP: ON/OFF**); roads and other plots stay safe. Enforced server-side via the attack event.
+- **Likes & Top Plots gallery.** Players can `/plot like` the plot they're standing on (you can't like your own),
+  and a new **Top Plots** button in `/plot menu` opens a gallery ranked by likes — click a plot to view it, then
+  **Visit** or **Like/Unlike**. `/plot info` now shows the like count and PvP state.
+
 ## [0.1.2] — 2026-07-06
 
 Portal travel fixes.

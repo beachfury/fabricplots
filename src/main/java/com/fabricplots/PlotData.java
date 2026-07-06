@@ -12,8 +12,11 @@ public final class PlotData {
     public String ownerName = "";   // cached so the welcome message works for offline owners
     public String name = "";        // optional plot name set by the owner
     public BlockPos home = null;    // optional /plot home target inside the plot (else the cell centre)
+    public String floorBlockId = "";// surface block id (e.g. "minecraft:sandstone"); blank = default grass
+    public boolean pvp = false;     // is player-vs-player combat allowed on this plot?
     public final Set<UUID> trusted = new LinkedHashSet<>();
     public final Set<UUID> denied = new LinkedHashSet<>();   // banned from entering this plot
+    public final Set<UUID> likes = new LinkedHashSet<>();    // players who liked this plot
     public final Set<PlotPos> cells = new LinkedHashSet<>();
 
     public PlotData(UUID owner, String ownerName) {
