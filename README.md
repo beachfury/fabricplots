@@ -11,8 +11,9 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
 - **Claiming** — `/plot claim`, `/plot auto`, `/plot home`, `/plot visit`, per-player claim limits.
 - **Grief protection** — only the owner and trusted players build; roads and other plots are locked.
 - **Trust & deny** — `/plot trust` / `/plot deny` (deny bounces a player off your plot).
-- **Custom plot floor** — pick your plot's ground block from a 44-block GUI palette (grass, sand, stone, quartz,
-  all 16 concretes, and more). It recolors the surface instantly and survives `/plot clear`.
+- **Custom plot floor** — pick your plot's ground block from a paginated GUI palette of **every full-cube block**
+  (all the natural blocks, stones, woods, 16 concretes, ores — and version-specific blocks like 26.2's sulfur and
+  cinnabar). It recolors the surface instantly and survives `/plot clear`.
 - **Per-plot PvP toggle** — the plot world is safe by default; an owner can allow PvP on their own plot from the
   settings menu (roads and other plots stay safe).
 - **Likes & Top Plots** — players `/plot like` a plot they're standing on (or use the GUI), and the **Top Plots**
