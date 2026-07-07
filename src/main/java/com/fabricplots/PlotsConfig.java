@@ -33,6 +33,15 @@ public final class PlotsConfig {
     public static volatile int spawnY = PlotConfig.FLOOR_Y;
     public static volatile int spawnZ = PlotConfig.SPAWN_Z;
 
+    // ---- Economy (optional; needs a Common Economy API provider, e.g. Savs Common Economy) --------
+    public static volatile boolean economyEnabled = false;    // master switch — OFF by default
+    public static volatile int claimCost = 100;               // charged to claim each plot (/claim, /auto)
+    public static volatile boolean firstPlotFree = false;     // a player's first plot costs nothing
+    public static volatile boolean chargeAdmins = false;      // do ops pay too (false = ops claim free)
+    public static volatile boolean refundOnDelete = false;    // refund part of the cost on /plot delete
+    public static volatile int refundPercent = 50;            // how much of the paid amount to refund
+    public static volatile String economyCurrencyId = "";     // currency id (blank = the provider's default)
+
     private static Path file;
 
     private PlotsConfig() {}
@@ -64,6 +73,13 @@ public final class PlotsConfig {
         spawnX = inted(p, "spawn-x", spawnX);
         spawnY = inted(p, "spawn-y", spawnY);
         spawnZ = inted(p, "spawn-z", spawnZ);
+        economyEnabled = bool(p, "economy-enabled", economyEnabled);
+        claimCost = Math.max(0, inted(p, "economy-claim-cost", claimCost));
+        firstPlotFree = bool(p, "economy-first-plot-free", firstPlotFree);
+        chargeAdmins = bool(p, "economy-charge-admins", chargeAdmins);
+        refundOnDelete = bool(p, "economy-refund-on-delete", refundOnDelete);
+        refundPercent = Math.max(0, Math.min(100, inted(p, "economy-refund-percent", refundPercent)));
+        economyCurrencyId = p.getProperty("economy-currency-id", economyCurrencyId).trim();
         save(); // always rewrite so keys added in a mod update show up in the file (values are preserved)
     }
 
@@ -89,6 +105,13 @@ public final class PlotsConfig {
         p.setProperty("spawn-x", Integer.toString(spawnX));
         p.setProperty("spawn-y", Integer.toString(spawnY));
         p.setProperty("spawn-z", Integer.toString(spawnZ));
+        p.setProperty("economy-enabled", Boolean.toString(economyEnabled));
+        p.setProperty("economy-claim-cost", Integer.toString(claimCost));
+        p.setProperty("economy-first-plot-free", Boolean.toString(firstPlotFree));
+        p.setProperty("economy-charge-admins", Boolean.toString(chargeAdmins));
+        p.setProperty("economy-refund-on-delete", Boolean.toString(refundOnDelete));
+        p.setProperty("economy-refund-percent", Integer.toString(refundPercent));
+        p.setProperty("economy-currency-id", economyCurrencyId);
         try {
             Files.createDirectories(file.getParent());
             try (var out = Files.newOutputStream(file)) {

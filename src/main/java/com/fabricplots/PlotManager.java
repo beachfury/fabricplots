@@ -94,11 +94,13 @@ public final class PlotManager {
 
     /** Merge several cells into one plot owned by {@code owner}, dissolving any old groups they were in. */
     public static void combine(java.util.Collection<PlotPos> cells, UUID owner, String ownerName) {
-        for (PlotPos c : new ArrayList<>(cells)) {
-            PlotData old = PLOTS.get(c);
-            if (old != null) for (PlotPos oc : new ArrayList<>(old.cells)) PLOTS.remove(oc);
-        }
+        // Carry the paid amounts of the merged plots into the combined plot (for refund accounting).
+        java.util.Set<PlotData> olds = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        for (PlotPos c : cells) { PlotData o = PLOTS.get(c); if (o != null) olds.add(o); }
+        long paidSum = 0;
+        for (PlotData o : olds) { paidSum += o.paidAmount; for (PlotPos oc : new ArrayList<>(o.cells)) PLOTS.remove(oc); }
         PlotData d = new PlotData(owner, ownerName);
+        d.paidAmount = paidSum;
         d.cells.addAll(cells);
         for (PlotPos c : cells) PLOTS.put(c, d);
         save();
@@ -109,11 +111,13 @@ public final class PlotManager {
         PlotData d = PLOTS.get(any);
         if (d == null || d.cells.size() <= 1) return new ArrayList<>();
         java.util.List<PlotPos> cells = new ArrayList<>(d.cells);
+        long perCellPaid = cells.isEmpty() ? 0 : d.paidAmount / cells.size(); // split the paid amount evenly
         for (PlotPos c : cells) {
             PlotData single = new PlotData(d.owner, d.ownerName);
             single.name = d.name;
             single.floorBlockId = d.floorBlockId;
             single.pvp = d.pvp;
+            single.paidAmount = perCellPaid;
             single.trusted.addAll(d.trusted);
             single.denied.addAll(d.denied);
             single.likes.addAll(d.likes);
@@ -224,6 +228,7 @@ public final class PlotManager {
                 if (parts.length > 8 && !parts[8].isBlank()) d.pvp = Boolean.parseBoolean(parts[8].trim());
                 if (parts.length > 9 && !parts[9].isBlank())
                     for (String u : parts[9].split(",")) if (!u.isBlank()) d.likes.add(UUID.fromString(u.trim()));
+                if (parts.length > 10 && !parts[10].isBlank()) { try { d.paidAmount = Long.parseLong(parts[10].trim()); } catch (NumberFormatException ignored) {} }
                 for (PlotPos c : d.cells) PLOTS.put(c, d);
             } catch (Exception e) {
                 System.err.println("[FabricPlots] Skipped bad plot line: " + line + " (" + e + ")");
@@ -253,7 +258,7 @@ public final class PlotManager {
             String home = d.home == null ? "" : d.home.getX() + ":" + d.home.getY() + ":" + d.home.getZ();
             String floor = d.floorBlockId == null ? "" : d.floorBlockId;
             lines.add(d.owner + ";" + d.ownerName + ";" + tj + ";" + cj + ";" + d.name + ";" + dj + ";" + home
-                    + ";" + floor + ";" + d.pvp + ";" + lj);
+                    + ";" + floor + ";" + d.pvp + ";" + lj + ";" + d.paidAmount);
         }
         try {
             Files.write(saveFile, lines);

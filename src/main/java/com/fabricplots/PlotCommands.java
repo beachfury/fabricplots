@@ -139,11 +139,15 @@ public final class PlotCommands {
             if (atClaimLimit(ctx, p)) { msg(ctx, "You've hit the plot limit (" + PlotsConfig.claimLimit + ")."); return 0; }
             PlotPos free = PlotManager.nextFree();
             if (free == null) { msg(ctx, "No free plots available."); return 0; }
+            long paid = chargeForClaim(ctx, p);
+            if (paid < 0) return 0; // couldn't afford — message already sent
             PlotManager.claim(free, p.getUUID(), p.getName().getString());
+            recordPaid(free, paid);
             p.addItem(PortalManager.createKey(free));
             PortalManager.buildExitPortal(plotsLevel(ctx), free);
             teleport(p, plotsLevel(ctx), free);
-            msg(ctx, "Claimed plot " + free.px() + "," + free.pz() + " — happy building! (Portal Key added: light a calcite frame at your base with it.)");
+            msg(ctx, "Claimed plot " + free.px() + "," + free.pz() + paidNote(p, paid)
+                    + " — happy building! (Portal Key added: light a calcite frame at your base with it.)");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -157,10 +161,14 @@ public final class PlotCommands {
             PlotPos pp = PlotManager.plotAt(x, z);
             if (PlotManager.isClaimed(pp)) { msg(ctx, "That plot is already claimed."); return 0; }
             if (atClaimLimit(ctx, p)) { msg(ctx, "You've hit the plot limit (" + PlotsConfig.claimLimit + ")."); return 0; }
+            long paid = chargeForClaim(ctx, p);
+            if (paid < 0) return 0; // couldn't afford — message already sent
             PlotManager.claim(pp, p.getUUID(), p.getName().getString());
+            recordPaid(pp, paid);
             p.addItem(PortalManager.createKey(pp));
             PortalManager.buildExitPortal(plotsLevel(ctx), pp);
-            msg(ctx, "Claimed plot " + pp.px() + "," + pp.pz() + ". Take the Portal Key — build a calcite frame at your base and light it with this to link a portal here.");
+            msg(ctx, "Claimed plot " + pp.px() + "," + pp.pz() + paidNote(p, paid)
+                    + ". Take the Portal Key — build a calcite frame at your base and light it with this to link a portal here.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -744,10 +752,17 @@ public final class PlotCommands {
             PlotData d = PlotManager.get(pp);
             if (d == null) { msg(ctx, "That plot is unclaimed."); return 0; }
             if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
+            // Refund only the owner deleting their own plot (an op cleaning up someone else's isn't refunded).
+            long refund = 0;
+            if (PlotsConfig.economyEnabled && PlotsConfig.refundOnDelete && d.paidAmount > 0 && p.getUUID().equals(d.owner)) {
+                refund = d.paidAmount * PlotsConfig.refundPercent / 100;
+            }
             List<PlotPos> released = new ArrayList<>(d.cells);
             PlotManager.unclaim(pp);
             for (PlotPos c : released) PortalManager.removeExitPortalIfOrphan(plotsLevel(ctx), c);
-            msg(ctx, "Released plot " + pp.px() + "," + pp.pz() + ".");
+            if (refund > 0) PlotEconomy.refund(p, refund);
+            msg(ctx, "Released plot " + pp.px() + "," + pp.pz()
+                    + (refund > 0 ? " — refunded " + PlotEconomy.format(p, refund) : "") + ".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -844,6 +859,40 @@ public final class PlotCommands {
     private static boolean atClaimLimit(CommandContext<CommandSourceStack> ctx, ServerPlayer p) {
         if (isOp(ctx, p) || PlotsConfig.claimLimit <= 0) return false;
         return PlotManager.ownedCount(p.getUUID()) >= PlotsConfig.claimLimit;
+    }
+
+    // ---- economy helpers -------------------------------------------------
+
+    /** Cost to claim one plot for this player: 0 if economy off, admin-exempt, or first-plot-free. */
+    private static long claimCost(CommandContext<CommandSourceStack> ctx, ServerPlayer p) {
+        if (!PlotsConfig.economyEnabled || PlotsConfig.claimCost <= 0) return 0;
+        if (!PlotsConfig.chargeAdmins && isOp(ctx, p)) return 0;
+        if (PlotsConfig.firstPlotFree && PlotManager.ownedCount(p.getUUID()) == 0) return 0;
+        return PlotsConfig.claimCost;
+    }
+
+    /** Charge the claim cost. Returns amount paid (0 = free), or -1 if unaffordable (message sent). */
+    private static long chargeForClaim(CommandContext<CommandSourceStack> ctx, ServerPlayer p) {
+        long cost = claimCost(ctx, p);
+        if (cost <= 0) return 0;
+        PlotEconomy.Result r = PlotEconomy.charge(p, cost);
+        if (r == PlotEconomy.Result.INSUFFICIENT) {
+            msg(ctx, "You can't afford this plot — it costs " + PlotEconomy.format(p, cost) + ".");
+            return -1;
+        }
+        return r == PlotEconomy.Result.CHARGED ? cost : 0; // NO_ECONOMY (no provider present) -> free
+    }
+
+    /** Store the amount actually paid on the freshly-claimed plot, for refund accounting. */
+    private static void recordPaid(PlotPos pp, long paid) {
+        if (paid <= 0) return;
+        PlotData d = PlotManager.get(pp);
+        if (d != null) { d.paidAmount = paid; PlotManager.save(); }
+    }
+
+    /** " (paid X)" note for claim messages when money changed hands, else "". */
+    private static String paidNote(ServerPlayer p, long paid) {
+        return paid > 0 ? " (paid " + PlotEconomy.format(p, paid) + ")" : "";
     }
 
     private static String nameOf(CommandContext<CommandSourceStack> ctx, UUID id) {
