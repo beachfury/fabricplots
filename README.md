@@ -35,6 +35,11 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   fire / mob-griefing / projectile protection, inactivity expiry, spawn point, and more.
 - **Admin safety** — ops are not auto-exempt; an op runs `/plot admin` to *opt in* to editing outside their own
   plots, so the powerful tools can't wreck the map by accident.
+- **Optional economy** — off by default. Turn it on in the config to charge for claiming plots (with optional
+  first-plot-free, admin exemption, and refunds on delete). Integrates with the
+  [Common Economy API](https://github.com/Patbox/common-economy-api), so it works with any compliant economy mod
+  (e.g. [Savs Common Economy](https://modrinth.com/mod/savs-common-economy)) — and it's a soft dependency, so
+  FabricPlots runs fine without one.
 
 ## Requirements
 

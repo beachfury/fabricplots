@@ -61,6 +61,18 @@ Edit the file, then **`/plot reload`** (no restart). Geometry is NOT here (needs
 | `inactivity-expiry` | `false` | auto-release plots of long-absent owners |
 | `inactivity-days` | `30` | days of absence before release |
 | `spawn-x/y/z` | `40/67/40` | plot-world spawn (set in-game with `/plot setspawn`) |
+| `economy-enabled` | `false` | charge money to claim plots (needs a Common Economy provider) |
+| `economy-claim-cost` | `100` | cost charged on `/plot claim` and `/plot auto` |
+| `economy-first-plot-free` | `false` | a player's first plot costs nothing |
+| `economy-charge-admins` | `false` | do ops pay too (false = ops claim free) |
+| `economy-refund-on-delete` | `false` | refund part of the paid amount on `/plot delete` |
+| `economy-refund-percent` | `50` | percent of the paid amount to refund |
+| `economy-currency-id` | *(blank)* | currency id to use (blank = the provider's default) |
+
+> **Economy** is a soft integration via the [Common Economy API](https://github.com/Patbox/common-economy-api). It
+> stays off unless you set `economy-enabled=true` **and** run a compatible economy mod (e.g.
+> [Savs Common Economy](https://modrinth.com/mod/savs-common-economy)). With it enabled but no economy mod present,
+> claims fall back to free. Merging is free (each plot was already paid for on claim).
 
 ## Admin notes
 

@@ -14,6 +14,7 @@ public final class PlotData {
     public BlockPos home = null;    // optional /plot home target inside the plot (else the cell centre)
     public String floorBlockId = "";// surface block id (e.g. "minecraft:sandstone"); blank = default grass
     public boolean pvp = false;     // is player-vs-player combat allowed on this plot?
+    public long paidAmount = 0;     // economy: total actually paid to claim this plot (for refunds; 0 = free)
     public final Set<UUID> trusted = new LinkedHashSet<>();
     public final Set<UUID> denied = new LinkedHashSet<>();   // banned from entering this plot
     public final Set<UUID> likes = new LinkedHashSet<>();    // players who liked this plot

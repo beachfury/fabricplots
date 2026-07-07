@@ -27,6 +27,11 @@ dependencies {
     // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Must also be present at
     // runtime — sgui-2.0.0+26.1.jar goes in the server's mods folder alongside this mod.
     implementation "eu.pb4:sgui:2.1.0+26.2"
+
+    // Optional economy integration — Patbox's Common Economy API (same maven as sgui). compileOnly:
+    // NOT bundled and NOT required. It's provided at runtime only if the server runs a Common Economy
+    // provider (e.g. Savs Common Economy). FabricPlots runs fine without it; economy is off by default.
+    compileOnly "eu.pb4:common-economy-api:2.0.0"
 }
 
 java {

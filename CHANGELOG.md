@@ -3,6 +3,21 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.6] — 2026-07-06
+
+### Added
+- **Optional plot economy — charge money to claim plots.** Off by default; enable it in
+  `config/fabricplots.properties`. When on, `/plot claim` and `/plot auto` charge a configurable cost, and
+  `/plot delete` can refund part of what was paid. Merging is free (you already paid to claim each plot).
+  Integrates with **[Patbox's Common Economy API](https://github.com/Patbox/common-economy-api)**, so it works
+  with any compliant economy mod (e.g. [Savs Common Economy](https://modrinth.com/mod/savs-common-economy)). It's a
+  soft dependency — if no economy mod is installed, FabricPlots runs exactly as before and claims stay free.
+
+  New config keys (all under `economy-`): `enabled` (default **false**), `claim-cost` (100), `first-plot-free`
+  (false), `charge-admins` (false — ops claim free), `refund-on-delete` (false), `refund-percent` (50),
+  `currency-id` (blank = the provider's default currency). Free claims (first-plot-free / admins) record a paid
+  amount of 0, so they can't be delete-refunded for profit.
+
 ## [0.1.5] — 2026-07-06
 
 ### Changed
