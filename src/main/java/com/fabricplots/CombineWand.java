@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.UUID;
  * WorldEdit's wooden-axe wand). It selects an arbitrary SET of plot cells, so any rectilinear
  * shape can be merged (L, T, H, +, filled blocks, …):
  *   • Right-click a plot to add it to the selection (a gold marker drops at its centre).
+ *   • Right-click an ALREADY-SELECTED plot to remove it (toggle it back off).
  *   • Right-click another plot in the SAME ROW OR COLUMN as your last click → every plot between
  *     them is added too (a straight "stroke").
  *   • Right-click a plot that lines up with neither (a diagonal) → it just starts a new arm.
@@ -86,6 +88,16 @@ public final class CombineWand {
         final PlotPos cell = PlotManager.plotAt(clicked.getX(), clicked.getZ());
         final LinkedHashSet<PlotPos> cells = CELLS.computeIfAbsent(id, k -> new LinkedHashSet<>());
 
+        // Re-click an already-selected plot to REMOVE it (toggle off).
+        if (cells.contains(cell)) {
+            cells.remove(cell);
+            unmarkCell(level, id, cell);
+            LAST.put(id, clicked.immutable());
+            msg(p, "Removed that plot. " + cells.size() + " plot" + (cells.size() == 1 ? "" : "s")
+                    + " selected. /plot combine <player> to merge · /plot wand cancel to clear.");
+            return;
+        }
+
         List<PlotPos> toAdd;
         BlockPos last = LAST.get(id);
         if (last != null) {
@@ -104,7 +116,7 @@ public final class CombineWand {
         LAST.put(id, clicked.immutable());
         msg(p, "Selected " + cells.size() + " plot" + (cells.size() == 1 ? "" : "s")
                 + (added > 1 ? " (+" + added + " along the line)" : "")
-                + ". /plot combine <player> to merge · /plot wand cancel to clear.");
+                + ". Re-click a plot to unselect · /plot combine <player> to merge · /plot wand cancel to clear.");
     }
 
     /** All cells on the straight line between two row- or column-aligned cells (inclusive). */
@@ -128,6 +140,22 @@ public final class CombineWand {
         if (original.is(Blocks.GOLD_BLOCK)) return;
         MARKERS.computeIfAbsent(id, k -> new ArrayList<>()).add(new Marker(pos, original));
         level.setBlock(pos, GOLD, Block.UPDATE_CLIENTS);
+    }
+
+    /** Restore the original block under a single cell's gold marker and forget that marker. */
+    private static void unmarkCell(ServerLevel level, UUID id, PlotPos cell) {
+        int[] xz = PlotManager.homeXZ(cell);
+        BlockPos pos = new BlockPos(xz[0], PlotConfig.FLOOR_Y, xz[1]);
+        List<Marker> markers = MARKERS.get(id);
+        if (markers == null) return;
+        for (Iterator<Marker> it = markers.iterator(); it.hasNext(); ) {
+            Marker m = it.next();
+            if (m.pos().equals(pos)) {
+                if (level.getBlockState(pos).is(Blocks.GOLD_BLOCK)) level.setBlock(pos, m.original(), Block.UPDATE_CLIENTS);
+                it.remove();
+                break;
+            }
+        }
     }
 
     /** Restore the original blocks under all of a player's markers and clear their selection. */

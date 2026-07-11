@@ -3,6 +3,13 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.7] — 2026-07-07
+
+### Changed
+- **Combine wand: right-click a selected plot to unselect it.** The merge wand now toggles — re-clicking a plot
+  that's already in your selection removes it (and its gold marker), instead of doing nothing. Previously the only
+  way to deselect was `/plot wand cancel`, which cleared the whole selection.
+
 ## [0.1.6] — 2026-07-06
 
 ### Added
