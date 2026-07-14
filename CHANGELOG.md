@@ -3,6 +3,16 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.10] — 2026-07-13
+
+### Added
+- **`manage-gamemode` config option** (default `true`). When `false`, FabricPlots never touches player
+  gamemode — for servers where another mod owns it, e.g. **Dimensional Inventories** with a `gameMode` set on
+  its dimension pools. Two mods both forcing gamemode on dimension change was the root cause of players
+  getting stuck in creative: the other mod flipped the player first, and FabricPlots's mode handling fought
+  it on exit. If DI manages your plot world's gamemode, set `manage-gamemode=false`; otherwise leave it on
+  and don't give DI pools a gamemode.
+
 ## [0.1.9] — 2026-07-13
 
 ### Changed

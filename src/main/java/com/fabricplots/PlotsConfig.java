@@ -29,6 +29,8 @@ public final class PlotsConfig {
     public static volatile boolean inactivityExpiry = false;  // auto-release plots of long-absent owners
     public static volatile int inactivityDays = 30;           // days of inactivity before release
     public static volatile boolean plotWorldPortalAdminOnly = true; // who may light return portals in the plot world
+    public static volatile boolean manageGamemode = true;     // false = another mod (e.g. Dimensional Inventories
+                                                              // with a pool gamemode) owns gamemode; we don't touch it
     public static volatile int spawnX = PlotConfig.SPAWN_X;   // plot-world spawn (set with /plot setspawn)
     public static volatile int spawnY = PlotConfig.FLOOR_Y;
     public static volatile int spawnZ = PlotConfig.SPAWN_Z;
@@ -70,6 +72,7 @@ public final class PlotsConfig {
         inactivityExpiry = bool(p, "inactivity-expiry", inactivityExpiry);
         inactivityDays = Math.max(1, inted(p, "inactivity-days", inactivityDays));
         plotWorldPortalAdminOnly = bool(p, "plot-world-portal-admin-only", plotWorldPortalAdminOnly);
+        manageGamemode = bool(p, "manage-gamemode", manageGamemode);
         spawnX = inted(p, "spawn-x", spawnX);
         spawnY = inted(p, "spawn-y", spawnY);
         spawnZ = inted(p, "spawn-z", spawnZ);
@@ -102,6 +105,7 @@ public final class PlotsConfig {
         p.setProperty("inactivity-expiry", Boolean.toString(inactivityExpiry));
         p.setProperty("inactivity-days", Integer.toString(inactivityDays));
         p.setProperty("plot-world-portal-admin-only", Boolean.toString(plotWorldPortalAdminOnly));
+        p.setProperty("manage-gamemode", Boolean.toString(manageGamemode));
         p.setProperty("spawn-x", Integer.toString(spawnX));
         p.setProperty("spawn-y", Integer.toString(spawnY));
         p.setProperty("spawn-z", Integer.toString(spawnZ));

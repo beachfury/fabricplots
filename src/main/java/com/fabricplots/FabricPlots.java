@@ -133,11 +133,12 @@ public final class FabricPlots implements ModInitializer {
             }
 
             // "Own rules": creative inside the plots world, survival outside.
-            // NOTE: exit is UNCONDITIONALLY survival for now. The 0.1.2 "restore your prior mode"
-            // round-trip mis-recorded creative when another mod (e.g. a per-dimension inventory mod
-            // with its own gamemode override) or a restart changed the mode first, stranding players
-            // in creative in the overworld. Until that interaction has a proper fix, everyone leaves
-            // in survival — a creative admin just toggles back with /gamemode creative.
+            // Exit is unconditionally survival: a "restore your prior mode" round-trip can't be made
+            // reliable when another mod may also set gamemode (the snapshot reads the other mod's
+            // value). A creative admin just toggles back with /gamemode creative.
+            // manage-gamemode=false hands gamemode over entirely to another mod — set it when e.g.
+            // Dimensional Inventories has a gameMode on its dimension pools, so the two never fight.
+            if (!PlotsConfig.manageGamemode) { LAST_DIM.put(p.getUUID(), dim); continue; }
             ResourceKey<Level> prev = LAST_DIM.put(p.getUUID(), dim);
             if (dim == prev) continue; // ResourceKeys are interned
             if (dim == PLOTS_DIM) {

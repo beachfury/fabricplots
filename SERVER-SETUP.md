@@ -61,6 +61,7 @@ Edit the file, then **`/plot reload`** (no restart). Geometry is NOT here (needs
 | `inactivity-expiry` | `false` | auto-release plots of long-absent owners |
 | `inactivity-days` | `30` | days of absence before release |
 | `spawn-x/y/z` | `40/67/40` | plot-world spawn (set in-game with `/plot setspawn`) |
+| `manage-gamemode` | `true` | FabricPlots forces creative inside / survival on exit. Set `false` if another mod (e.g. Dimensional Inventories with a pool `gameMode`) manages gamemode, so the two don't fight |
 | `economy-enabled` | `false` | charge money to claim plots (needs a Common Economy provider) |
 | `economy-claim-cost` | `100` | cost charged on `/plot claim` and `/plot auto` |
 | `economy-first-plot-free` | `false` | a player's first plot costs nothing |
