@@ -139,8 +139,14 @@ public final class FabricPlots implements ModInitializer {
             ResourceKey<Level> prev = LAST_DIM.put(p.getUUID(), dim);
             if (dim == prev) continue; // ResourceKeys are interned
             if (dim == PLOTS_DIM) {
-                // Remember what they had before we force creative, so it can be restored on exit.
-                PRE_PLOT_MODE.put(p.getUUID(), p.gameMode.getGameModeForPlayer());
+                // Remember their prior mode ONLY on a genuine entry from another dimension. If prev is
+                // unknown (null) they were already in the plot world with no record of the mode they
+                // came in with — e.g. reconnecting into it after a server restart/sleep. Their current
+                // mode is the forced creative, so capturing it would strand them in creative on exit.
+                // Leave PRE_PLOT_MODE unset so exit falls back to survival (the safe default).
+                if (prev != null && prev != PLOTS_DIM) {
+                    PRE_PLOT_MODE.put(p.getUUID(), p.gameMode.getGameModeForPlayer());
+                }
                 p.setGameMode(GameType.CREATIVE);
             } else if (prev == PLOTS_DIM) {
                 // Restore the mode they entered with (creative admin -> creative, others -> survival).

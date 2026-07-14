@@ -3,6 +3,16 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.8] — 2026-07-11
+
+### Fixed
+- **Stuck in creative after leaving the plot world.** If a player was in the plot world across a server
+  restart (or sleep/wake) and then left through a portal, they could be left in creative in the overworld.
+  The mod was re-capturing the *forced* creative mode as their "prior mode" when it had no record of the mode
+  they actually entered with. It now only records the prior mode on a genuine entry from another dimension;
+  when that record is missing (e.g. reconnecting straight into the plot world after a restart), exiting now
+  falls back to survival instead of stranding the player in creative.
+
 ## [0.1.7] — 2026-07-07
 
 ### Changed
