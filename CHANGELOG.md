@@ -3,6 +3,15 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.9] — 2026-07-13
+
+### Changed
+- **Leaving the plot world now always puts you in survival.** The 0.1.2 "restore the mode you entered with"
+  behavior could still strand players in creative when another mod that also manages gamemode (e.g. a
+  per-dimension inventory mod with a gamemode override on the plot dimension) or a server restart changed the
+  recorded mode. Until that interaction has a proper fix, exit is unconditionally survival — a creative admin
+  just runs `/gamemode creative` again after stepping out.
+
 ## [0.1.8] — 2026-07-11
 
 ### Fixed

@@ -36,9 +36,6 @@ public final class FabricPlots implements ModInitializer {
     // world-change event, so we poll once per server tick instead.
     private static final Map<UUID, ResourceKey<Level>> LAST_DIM = new HashMap<>();
     private static final Map<UUID, PlotData> LAST_PLOT = new HashMap<>();
-    // The game mode a player had BEFORE entering the plot world, so we can restore it on the way out
-    // (a creative admin comes back to creative; everyone else to survival).
-    private static final Map<UUID, GameType> PRE_PLOT_MODE = new HashMap<>();
     private static int mobScanTick = 0;
 
     @Override
@@ -135,23 +132,18 @@ public final class FabricPlots implements ModInitializer {
                 LAST_PLOT.remove(p.getUUID());
             }
 
-            // "Own rules": creative inside the plots world; restore your prior mode outside.
+            // "Own rules": creative inside the plots world, survival outside.
+            // NOTE: exit is UNCONDITIONALLY survival for now. The 0.1.2 "restore your prior mode"
+            // round-trip mis-recorded creative when another mod (e.g. a per-dimension inventory mod
+            // with its own gamemode override) or a restart changed the mode first, stranding players
+            // in creative in the overworld. Until that interaction has a proper fix, everyone leaves
+            // in survival — a creative admin just toggles back with /gamemode creative.
             ResourceKey<Level> prev = LAST_DIM.put(p.getUUID(), dim);
             if (dim == prev) continue; // ResourceKeys are interned
             if (dim == PLOTS_DIM) {
-                // Remember their prior mode ONLY on a genuine entry from another dimension. If prev is
-                // unknown (null) they were already in the plot world with no record of the mode they
-                // came in with — e.g. reconnecting into it after a server restart/sleep. Their current
-                // mode is the forced creative, so capturing it would strand them in creative on exit.
-                // Leave PRE_PLOT_MODE unset so exit falls back to survival (the safe default).
-                if (prev != null && prev != PLOTS_DIM) {
-                    PRE_PLOT_MODE.put(p.getUUID(), p.gameMode.getGameModeForPlayer());
-                }
                 p.setGameMode(GameType.CREATIVE);
             } else if (prev == PLOTS_DIM) {
-                // Restore the mode they entered with (creative admin -> creative, others -> survival).
-                GameType restore = PRE_PLOT_MODE.remove(p.getUUID());
-                p.setGameMode(restore == null ? GameType.SURVIVAL : restore);
+                p.setGameMode(GameType.SURVIVAL);
             }
         }
 
