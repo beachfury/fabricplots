@@ -78,6 +78,10 @@ and put the plot dimension in its own pool:
 Now the plot world keeps its own inventory (and gamemode) — creative items stay in the plot world, and your main
 world keeps its own items.
 
+> **Important:** if you give Dimensional Inventories a `gameMode` on its pools (as above), also set
+> **`manage-gamemode=false`** in `config/fabricplots.properties` so only one mod manages gamemode. With both
+> active, the two can fight over the mode on dimension change (e.g. players getting stuck in creative).
+
 > **Portal Keys & separated inventories:** because the key would otherwise be stripped when you leave the plot
 > world, run **`/plot key` at your base in the main world** (or use the **Portal Keys** button in `/plot menu`) — it
 > gives you a key for every plot you own, created right in your main-world inventory. `/plot menu` and `/plot list`
