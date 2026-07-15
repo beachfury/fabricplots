@@ -196,18 +196,32 @@ public final class PlotWorldPainter {
         return columns;
     }
 
-    /** Wipe every column of a plot (all its cells) top-to-bottom back to the standard ground. */
+    /**
+     * Wipe every column a plot OWNS top-to-bottom back to the standard ground — not just the cell
+     * cores but also the sidewalk ring and, for a merged plot, the dissolved roads between its cells.
+     * The merge itself is untouched (this clears blocks, it does not uncombine). The sidewalk ring is
+     * repainted as sidewalk and everything else as the plot's floor block, matching a fresh repaint.
+     */
     public static int clearPlot(ServerLevel level, PlotData data) {
+        if (data.cells.isEmpty()) return 0;
         BlockState surface = surfaceFor(data);
+        int pxMin = Integer.MAX_VALUE, pxMax = Integer.MIN_VALUE, pzMin = Integer.MAX_VALUE, pzMax = Integer.MIN_VALUE;
+        for (PlotPos c : data.cells) {
+            pxMin = Math.min(pxMin, c.px()); pxMax = Math.max(pxMax, c.px());
+            pzMin = Math.min(pzMin, c.pz()); pzMax = Math.max(pzMax, c.pz());
+        }
+        // Owned columns extend SIDEWALK_DEPTH beyond each cell core; merged gaps lie inside the box.
+        final int xStart = pxMin * PlotConfig.STEP - PlotConfig.SIDEWALK_DEPTH;
+        final int xEnd = pxMax * PlotConfig.STEP + PlotConfig.PLOT_SIZE + PlotConfig.SIDEWALK_DEPTH;
+        final int zStart = pzMin * PlotConfig.STEP - PlotConfig.SIDEWALK_DEPTH;
+        final int zEnd = pzMax * PlotConfig.STEP + PlotConfig.PLOT_SIZE + PlotConfig.SIDEWALK_DEPTH;
         int columns = 0;
-        for (PlotPos cell : data.cells) {
-            final int baseX = cell.px() * PlotConfig.STEP;
-            final int baseZ = cell.pz() * PlotConfig.STEP;
-            for (int dx = 0; dx < PlotConfig.PLOT_SIZE; dx++)
-                for (int dz = 0; dz < PlotConfig.PLOT_SIZE; dz++) {
-                    resetColumn(level, baseX + dx, baseZ + dz, surface);
-                    columns++;
-                }
+        for (int x = xStart; x <= xEnd; x++) {
+            for (int z = zStart; z <= zEnd; z++) {
+                if (PlotManager.owningPlot(x, z) != data) continue; // other plots / roads stay untouched
+                resetColumn(level, x, z, PlotManager.nearMergeEdge(x, z) ? SIDEWALK : surface);
+                columns++;
+            }
         }
         return columns;
     }

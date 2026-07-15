@@ -3,6 +3,14 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.11] — 2026-07-13
+
+### Fixed
+- **`/plot clear` now fully clears merged plots.** It only reset each cell's 32×32 core, so builds on the
+  dissolved roads between a merge's cells — and on any plot's sidewalk ring — survived the clear. It now wipes
+  every column the plot owns (cores, sidewalk ring, and merged interior), repainting the sidewalk ring as
+  sidewalk and the rest as the plot's floor block. The merge itself is untouched — clearing does not uncombine.
+
 ## [0.1.10] — 2026-07-13
 
 ### Added
