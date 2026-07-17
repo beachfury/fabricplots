@@ -70,6 +70,10 @@ public final class FabricPlots implements ModInitializer {
         PlotEdit.register();
         // Grief protection inside the plots world.
         PlotProtection.register();
+        // Biome-spawned mobs are confined to the plot they spawned on.
+        PlotMobGuard.register();
+        // %fabricplots:*% placeholders (only when Patbox's Placeholder API is installed).
+        PlotPlaceholders.register();
 
         // Paint roads / sidewalks as chunks generate (base only — no block-entities mid-gen).
         ServerChunkEvents.CHUNK_GENERATE.register(PlotWorldPainter::onGenerate);
@@ -86,6 +90,7 @@ public final class FabricPlots implements ModInitializer {
     }
 
     private static int portalParticleTick = 0;
+    private static int mobGuardTick = 0;
 
     /** Apply the time/weather config to the plot world's game rules (start-up + /plot reload). */
     public static void applyWorldRules(MinecraftServer server) {
@@ -107,6 +112,9 @@ public final class FabricPlots implements ModInitializer {
 
         // Portal swirl particles (a few times a second is plenty).
         if (++portalParticleTick >= 5) { portalParticleTick = 0; PortalManager.spawnParticles(server); }
+
+        // Send biome-spawned escapee mobs back to their plot every couple of seconds.
+        if (++mobGuardTick >= 40) { mobGuardTick = 0; PlotMobGuard.tick(server.getLevel(PLOTS_DIM)); }
 
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             ResourceKey<Level> dim = p.level().dimension();

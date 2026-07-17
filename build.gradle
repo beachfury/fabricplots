@@ -32,6 +32,10 @@ dependencies {
     // NOT bundled and NOT required. It's provided at runtime only if the server runs a Common Economy
     // provider (e.g. Savs Common Economy). FabricPlots runs fine without it; economy is off by default.
     compileOnly "eu.pb4:common-economy-api:2.0.0"
+
+    // Optional Placeholder API integration (same maven). compileOnly: %fabricplots:*% placeholders
+    // register only when the placeholder-api mod is present at runtime.
+    compileOnly "eu.pb4:placeholder-api:3.0.0+26.1"
 }
 
 java {
