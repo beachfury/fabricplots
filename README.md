@@ -26,7 +26,9 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   and worldgen mods appear automatically) repaints your plot — grass, foliage and sky tint — via vanilla's
   `/fillbiome` machinery. Persists in the world, covers merged shapes, and resets automatically when a plot
   is deleted or expires. Mobs the biome spawns are **confined to the plot** (tethered AI + a
-  teleport-back sweep), so a Nether Wastes plot keeps its piglins to itself.
+  teleport-back sweep), so a Nether Wastes plot keeps its piglins to itself — and per-plot **spawn
+  toggles** let the owner allow/block hostile and passive spawns independently. Changing biome (or
+  `/plot clear`) cleans up the previous mobs and their drops.
 - **Placeholders** — with [Placeholder API](https://placeholders.pb4.eu/) installed, `%fabricplots:owned%`,
   `%fabricplots:total%`, `%fabricplots:my_likes%`, `%fabricplots:plot_name%`, `%fabricplots:plot_owner%`,
   `%fabricplots:plot_likes%`, `%fabricplots:plot_biome%` work in tab lists, chat formats and holograms
