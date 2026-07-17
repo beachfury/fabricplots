@@ -17,6 +17,8 @@ public final class PlotData {
     public String greeting = "";    // optional custom welcome (action bar) shown to visitors; blank = default
     public String ambience = "";    // client-only sky illusion "time:weather" (e.g. "sunset:rain"); blank = off
     public String biomeId = "";     // plot biome (e.g. "minecraft:cherry_grove"); blank = the default plot biome
+    public boolean spawnHostile = true;  // allow the biome's hostile (MONSTER) mobs to spawn on this plot
+    public boolean spawnPassive = true;  // allow the biome's passive mobs to spawn on this plot
     public String sidewalkPattern = ""; // designer: 4 rows x 9 cols (3 sidewalk + curb), rows '|', cells ',', "" = air
     public String wallPattern = "";     // designer: 3 rows x 9 cols (bottom->top) on the plot's edge ring
     public transient volatile String[][] sidewalkGridCache; // parsed-pattern caches (see PlotStyle.grid)
