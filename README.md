@@ -10,6 +10,9 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   (roads, sidewalks, corner lamp posts). Forces creative inside, survival outside.
 - **Claiming** — `/plot claim`, `/plot auto`, `/plot home`, `/plot visit`, per-player claim limits.
 - **Grief protection** — only the owner and trusted players build; roads and other plots are locked.
+  **Full containment:** fluids can't flow off a plot, pistons/flying machines can't cross the boundary,
+  respawn anchors & end crystals are banned (their blasts bypass TNT rules), and **self-healing streets**
+  automatically remove anything foreign from roads (tree overhang, snow, spills, litter).
 - **Trust & deny** — `/plot trust` / `/plot deny` (deny bounces a player off your plot).
 - **Custom plot floor** — pick your plot's ground block from a paginated GUI palette of **every full-cube block**
   (all the natural blocks, stones, woods, 16 concretes, ores — and version-specific blocks like 26.2's sulfur and

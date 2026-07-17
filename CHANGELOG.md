@@ -49,6 +49,23 @@ The customization update.
   `%fabricplots:my_likes%`, and — for the plot you're standing on — `%fabricplots:plot_name%`,
   `%fabricplots:plot_owner%`, `%fabricplots:plot_likes%`, `%fabricplots:plot_biome%`. For tab lists, chat
   formats, holograms, etc.
+- **Full plot containment.** Nothing physical escapes a plot any more:
+  - *Fluids stay home* — water/lava can no longer flow off a plot onto streets (including
+    dispenser-placed fluids; a small mixin blocks the spread at the source).
+  - *Pistons stay home* — a piston move is cancelled if the head or any pushed/pulled block would
+    start or end outside the piston's plot. Blocks push-out, street-block pull-in, and flying
+    machines (they stall at the boundary).
+  - *Self-healing streets* — roads/curbs/lamps are deterministic, so a budgeted sweeper near players
+    resets anything foreign: tree canopies grown over the road, snow layers from a plot biome's
+    unavoidable 4-block bleed, fallen sand, spills. Zero block writes when streets are clean.
+    Config: `street-sweeper` (on) and `street-sweeper-spawn-radius` (64 — the spawn plaza is left
+    alone so admins can decorate it).
+  - *Street litter cleanup* — dropped items, boats/minecarts, and unnamed armor stands sitting on a
+    street for 5+ minutes are removed (plots are untouched).
+  - *Curb placement exploit fixed* — placing a block now validates where the block actually lands,
+    not just the block you clicked, so you can no longer build over the curb from the street.
+  - *Respawn anchors & end crystals banned in the plot world* — their explosions bypass the TNT
+    protection, and an anchor can't even set spawn in this dimension; it only explodes.
 - `/plot name` input is now sanitized (a stray `;` could corrupt the save file).
 
 ### Changed

@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.fabricplots.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "FluidContainmentMixin",
+    "PistonContainmentMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

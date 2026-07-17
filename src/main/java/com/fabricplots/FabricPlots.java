@@ -91,6 +91,7 @@ public final class FabricPlots implements ModInitializer {
 
     private static int portalParticleTick = 0;
     private static int mobGuardTick = 0;
+    private static int sweeperTick = 0;
 
     /** Apply the time/weather config to the plot world's game rules (start-up + /plot reload). */
     public static void applyWorldRules(MinecraftServer server) {
@@ -115,6 +116,12 @@ public final class FabricPlots implements ModInitializer {
 
         // Send biome-spawned escapee mobs back to their plot every couple of seconds.
         if (++mobGuardTick >= 40) { mobGuardTick = 0; PlotMobGuard.tick(server.getLevel(PLOTS_DIM)); }
+
+        // Self-healing streets: remove anything foreign (snow, spills, tree canopies) near players.
+        if (PlotsConfig.streetSweeper && ++sweeperTick >= 100) {
+            sweeperTick = 0;
+            StreetSweeper.sweep(server.getLevel(PLOTS_DIM));
+        }
 
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             ResourceKey<Level> dim = p.level().dimension();
@@ -178,6 +185,7 @@ public final class FabricPlots implements ModInitializer {
             PlotWorldPainter.saveDecorated(); // flush the decorated-chunks record periodically
             PlotExpiry.tick(server, System.currentTimeMillis()); // refresh activity + release inactive plots
             PlotExpiry.save();
+            StreetSweeper.cleanLitter(plots); // dropped items / boats / stands left on streets
         }
     }
 }

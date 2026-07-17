@@ -34,6 +34,8 @@ public final class PlotsConfig {
     public static volatile int spawnX = PlotConfig.SPAWN_X;   // plot-world spawn (set with /plot setspawn)
     public static volatile int spawnY = PlotConfig.FLOOR_Y;
     public static volatile int spawnZ = PlotConfig.SPAWN_Z;
+    public static volatile boolean streetSweeper = true;      // self-heal streets (remove foreign blocks)
+    public static volatile int sweeperSpawnRadius = 64;       // don't sweep this close to spawn (admin plaza builds)
 
     // ---- Economy (optional; needs a Common Economy API provider, e.g. Savs Common Economy) --------
     public static volatile boolean economyEnabled = false;    // master switch — OFF by default
@@ -76,6 +78,8 @@ public final class PlotsConfig {
         spawnX = inted(p, "spawn-x", spawnX);
         spawnY = inted(p, "spawn-y", spawnY);
         spawnZ = inted(p, "spawn-z", spawnZ);
+        streetSweeper = bool(p, "street-sweeper", streetSweeper);
+        sweeperSpawnRadius = Math.max(0, inted(p, "street-sweeper-spawn-radius", sweeperSpawnRadius));
         economyEnabled = bool(p, "economy-enabled", economyEnabled);
         claimCost = Math.max(0, inted(p, "economy-claim-cost", claimCost));
         firstPlotFree = bool(p, "economy-first-plot-free", firstPlotFree);
@@ -102,6 +106,8 @@ public final class PlotsConfig {
         p.setProperty("protect-fire", Boolean.toString(protectFire));
         p.setProperty("protect-mob-griefing", Boolean.toString(protectMobGriefing));
         p.setProperty("protect-projectiles", Boolean.toString(protectProjectiles));
+        p.setProperty("street-sweeper", Boolean.toString(streetSweeper));
+        p.setProperty("street-sweeper-spawn-radius", Integer.toString(sweeperSpawnRadius));
         p.setProperty("inactivity-expiry", Boolean.toString(inactivityExpiry));
         p.setProperty("inactivity-days", Integer.toString(inactivityDays));
         p.setProperty("plot-world-portal-admin-only", Boolean.toString(plotWorldPortalAdminOnly));
