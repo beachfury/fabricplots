@@ -42,6 +42,10 @@ The customization update.
 - **Per-plot mob spawn toggles.** Settings → Mob spawning: allow or block the biome's **hostile** and
   **passive** spawns independently. Turning one off immediately clears that category from the plot, and
   the block also despawns saved mobs as their chunks reload. Named mobs (pets) are never touched.
+- **Mob lifecycle is per-plot now.** The old global rule ("unnamed mobs vanish after 10 minutes") no
+  longer applies on plots — what lives there is the owner's choice via the toggles, so unnamed farm
+  animals, biome mobs and zoo builds persist. The timed cull still cleans **streets and unclaimed
+  ground** (escapees and strays nobody owns).
 - **Cleanups that actually clean.** Changing a plot's biome removes the old biome's mobs and their dropped
   items; `/plot clear` now removes **every** non-player entity on the plot (mobs, drops, armor stands,
   boats, item frames…) along with the blocks.
@@ -63,7 +67,8 @@ The customization update.
   - *Street litter cleanup* — dropped items, boats/minecarts, and unnamed armor stands sitting on a
     street for 5+ minutes are removed (plots are untouched).
   - *Curb placement exploit fixed* — placing a block now validates where the block actually lands,
-    not just the block you clicked, so you can no longer build over the curb from the street.
+    not just the block you clicked, so you can no longer build over the curb from the street. Beds
+    are checked for BOTH halves, so a bed at the plot edge can't lay its head over the curb.
   - *Respawn anchors & end crystals banned in the plot world* — their explosions bypass the TNT
     protection, and an anchor can't even set spawn in this dimension; it only explodes.
 - `/plot name` input is now sanitized (a stray `;` could corrupt the save file).
