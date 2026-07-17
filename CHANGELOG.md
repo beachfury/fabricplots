@@ -3,6 +3,35 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.2.0] — 2026-07-17
+
+The customization update.
+
+### Added
+- **Sidewalk designer.** A chest-GUI pattern editor in plot settings: pick any block from your inventory and
+  stamp it into a repeating 9-wide template (3 sidewalk strips + the curb, between locked "your plot" and
+  "street" marker rows). The design tiles along every edge of your plot — including merged shapes — and any
+  stairs in the curb row automatically face the street. Empty cells are air. Applied when you close the
+  screen; survives `/plot clear`; Reset returns the standard tuff sidewalk.
+- **Wall designer.** Same editor, side-on: up to 3 layers of any blocks built on your plot's edge ring,
+  between a locked grass row and sky rows. Stairs face outward; empty cells are gaps (fence-like designs
+  welcome). Reset removes the wall.
+- **Sky & weather per plot.** Owners pick a look — always day/noon/sunset/night/midnight and/or
+  clear/rain/thunder — and visitors standing on the plot see it. Pure client-side illusion via play packets:
+  the server's real time and weather never change, and Bedrock players (Geyser) see it too.
+- **Custom greeting.** An owner-set action-bar welcome shown when someone steps onto the plot (replaces the
+  stock "Welcome to X's plot" line).
+- **Transfer ownership.** Give a plot to another online player — `/plot transfer <player>` or the settings
+  menu (with a confirmation screen).
+- **Kick visitors.** `/plot kick` (or the settings button) sends every non-trusted visitor on your plot back
+  to the spawn plaza.
+- **Browse Plots.** A hub gallery of every claimed plot (alphabetical, with owner and like count) — visit or
+  like any plot from it.
+- `/plot name` input is now sanitized (a stray `;` could corrupt the save file).
+
+### Changed
+- Plot settings menu grew a row to fit the new buttons.
+
 ## [0.1.12] — 2026-07-17
 
 ### Fixed

@@ -16,6 +16,15 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   cinnabar). It recolors the surface instantly and survives `/plot clear`.
 - **Per-plot PvP toggle** — the plot world is safe by default; an owner can allow PvP on their own plot from the
   settings menu (roads and other plots stay safe).
+- **Sidewalk & wall designers** — chest-GUI pattern editors: place any blocks into a repeating 9-wide template
+  (locked marker rows show your plot, the street, and the sky) and the design tiles along every edge of your
+  plot. Sidewalks are 3 strips + a curb (curb stairs always face the street); walls build up to 3 tall on your
+  plot's edge ring. Designs persist, survive `/plot clear`, and follow merges.
+- **Sky & weather per plot** — the owner picks "always sunset", "always rain", etc.; visitors standing on the
+  plot see it (client-side illusion — the server's real time/weather never changes). Works for Bedrock too.
+- **Custom greeting** — an owner-set welcome line shown to visitors stepping onto the plot.
+- **Transfer & kick** — hand a plot to another player (`/plot transfer` or the menu), and send unwanted
+  visitors back to spawn (`/plot kick` or the menu).
 - **Likes & Top Plots** — players `/plot like` a plot they're standing on (or use the GUI), and the **Top Plots**
   gallery in `/plot menu` ranks every plot by likes so people can browse and visit the best builds.
 - **Plot merging, any shape** — an op (or players, if enabled) selects plots with a wand and merges them into
@@ -28,9 +37,10 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing risk, no WorldEdit
   region setup.
 - **Clickable menus (sgui, crossplay)** — `/plot menu` (hub with **Claim a Plot**, My Plots, Build Editor, Portal
-  Keys, Top Plots), `/plot edit` (build GUI; material = the block in your hand), and per-plot settings: rename,
-  floor-block picker, PvP toggle, and trusted/denied management with player heads + name search. Claiming works
-  from the menu too — no commands required.
+  Keys, **Browse Plots**, Top Plots), `/plot edit` (build GUI; material = the block in your hand), and per-plot
+  settings: rename, floor-block picker, sidewalk & wall designers, sky & weather, greeting, PvP toggle, transfer,
+  kick visitors, and trusted/denied management with player heads + name search. Claiming works from the menu
+  too — no commands required.
 - **Config & protection** — live-reloadable `config/fabricplots.properties`: time/weather toggles, explosion /
   fire / mob-griefing / projectile protection, inactivity expiry, spawn point, and more.
 - **Admin safety** — ops are not auto-exempt; an op runs `/plot admin` to *opt in* to editing outside their own

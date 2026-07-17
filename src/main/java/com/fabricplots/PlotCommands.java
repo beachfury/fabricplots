@@ -70,6 +70,10 @@ public final class PlotCommands {
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(PlotCommands::namePlot)))
                 .then(Commands.literal("leave").executes(PlotCommands::leave))
+                .then(Commands.literal("kick").executes(PlotCommands::kick))
+                .then(Commands.literal("transfer")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(PlotCommands::transfer)))
                 .then(Commands.literal("like").executes(PlotCommands::like))
                 .then(Commands.literal("key").executes(PlotCommands::key))
                 .then(Commands.literal("removeall")
@@ -568,9 +572,46 @@ public final class PlotCommands {
             PlotData d = PlotManager.get(pp);
             if (d == null) { msg(ctx, "Stand on a plot you own."); return 0; }
             if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
-            d.name = StringArgumentType.getString(ctx, "name");
+            String raw = StringArgumentType.getString(ctx, "name");
+            d.name = raw.replace(";", "").replace("|", "").replace(",", "").trim();
+            if (d.name.length() > 48) d.name = d.name.substring(0, 48);
             PlotManager.save();
             msg(ctx, "Plot named \"" + d.name + "\".");
+            return 1;
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
+    /** /plot kick — send every non-trusted visitor on your plot back to the spawn plaza. */
+    private static int kick(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
+            PlotData d = p.level().dimension() == FabricPlots.PLOTS_DIM ? PlotManager.get(pp) : null;
+            if (d == null) { msg(ctx, "Stand on your plot to kick its visitors."); return 0; }
+            if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
+            int n = PlotMenus.kickVisitors(p, d);
+            msg(ctx, "Sent " + n + " visitor" + (n == 1 ? "" : "s") + " to spawn.");
+            return 1;
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
+    /** /plot transfer <player> — hand the plot you're standing on to another (online) player. */
+    private static int transfer(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
+            PlotData d = p.level().dimension() == FabricPlots.PLOTS_DIM ? PlotManager.get(pp) : null;
+            if (d == null) { msg(ctx, "Stand on the plot you want to transfer."); return 0; }
+            if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
+            if (target.getUUID().equals(d.owner)) { msg(ctx, "They already own this plot."); return 0; }
+            d.owner = target.getUUID();
+            d.ownerName = target.getName().getString();
+            d.trusted.remove(target.getUUID());
+            d.denied.remove(target.getUUID());
+            PlotManager.save();
+            msg(ctx, "Plot transferred to " + d.ownerName + ".");
+            target.sendSystemMessage(Component.literal("[Plots] " + p.getName().getString() + " gave you their plot!"));
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }

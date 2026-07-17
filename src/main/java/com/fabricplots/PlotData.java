@@ -14,6 +14,12 @@ public final class PlotData {
     public BlockPos home = null;    // optional /plot home target inside the plot (else the cell centre)
     public String floorBlockId = "";// surface block id (e.g. "minecraft:sandstone"); blank = default grass
     public boolean pvp = false;     // is player-vs-player combat allowed on this plot?
+    public String greeting = "";    // optional custom welcome (action bar) shown to visitors; blank = default
+    public String ambience = "";    // client-only sky illusion "time:weather" (e.g. "sunset:rain"); blank = off
+    public String sidewalkPattern = ""; // designer: 4 rows x 9 cols (3 sidewalk + curb), rows '|', cells ',', "" = air
+    public String wallPattern = "";     // designer: 3 rows x 9 cols (bottom->top) on the plot's edge ring
+    public transient volatile String[][] sidewalkGridCache; // parsed-pattern caches (see PlotStyle.grid)
+    public transient volatile String[][] wallGridCache;
     public long paidAmount = 0;     // economy: total actually paid to claim this plot (for refunds; 0 = free)
     public final Set<UUID> trusted = new LinkedHashSet<>();
     public final Set<UUID> denied = new LinkedHashSet<>();   // banned from entering this plot

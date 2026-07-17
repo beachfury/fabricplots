@@ -122,14 +122,19 @@ public final class FabricPlots implements ModInitializer {
                     p.teleportTo((ServerLevel) p.level(), PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5,
                             java.util.Set.of(), p.getYRot(), 0.0f, false);
                     if (pd != last) p.sendOverlayMessage(Component.literal("You're denied from that plot."));
+                } else if (pd != null && pd != last && !pd.greeting.isBlank()) {
+                    // The owner's custom greeting always wins over the stock welcome line.
+                    p.sendOverlayMessage(Component.literal(pd.greeting));
                 } else if (PlotsConfig.welcomeMessage && pd != null && pd != last) {
                     String owner = pd.ownerName.isBlank() ? "someone" : pd.ownerName;
                     String label = pd.name.isBlank() ? owner + "'s plot" : owner + "'s " + pd.name;
                     // Action bar (small text above the hotbar), not chat — avoids spam as players move around.
                     p.sendOverlayMessage(Component.literal("Welcome " + p.getName().getString() + " to " + label + "!"));
                 }
+                PlotAmbience.tick(p, pd); // per-plot sky illusion (client-only time/weather)
             } else {
                 LAST_PLOT.remove(p.getUUID());
+                PlotAmbience.reset(p); // back to the real sky when leaving the plot world
             }
 
             // "Own rules": creative inside the plots world, survival outside.
