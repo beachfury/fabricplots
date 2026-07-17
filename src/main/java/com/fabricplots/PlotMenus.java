@@ -152,16 +152,14 @@ public final class PlotMenus {
         g.setSlot(24, btn(Items.TNT, "Clear plot", "Reset every block to flat ground.", (i, t, a, gg) -> confirmClear(sp, anchor)));
         g.setSlot(25, btn(biomeIcon(d), "Biome",
                 "Currently: " + PlotBiomes.labelOf(d.biomeId) + " — recolor grass, leaves and sky on your plot.",
-                (i, t, a, gg) -> biomePicker(sp, anchor)));
+                (i, t, a, gg) -> biomePicker(sp, anchor, 0)));
         g.setSlot(31, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> myPlots(sp, 0)));
         g.open();
     }
 
     private static Item biomeIcon(PlotData d) {
-        for (PlotBiomes.Choice c : PlotBiomes.CHOICES)
-            if (c.biomeId().equals(d.biomeId.isBlank() ? PlotBiomes.DEFAULT_ID : d.biomeId))
-                return itemByRegistryId(c.iconItemId());
-        return Items.GRASS_BLOCK;
+        if (d.biomeId.isBlank()) return Items.GRASS_BLOCK;
+        return itemByRegistryId(PlotBiomes.iconFor(d.biomeId));
     }
 
     private static Item itemByRegistryId(String id) {
@@ -173,28 +171,52 @@ public final class PlotMenus {
 
     // ---- biome picker ----------------------------------------------------
 
-    public static void biomePicker(ServerPlayer sp, PlotPos anchor) {
+    public static void biomePicker(ServerPlayer sp, PlotPos anchor, int page) {
         PlotData d = PlotManager.get(anchor);
         if (d == null || (!d.owner.equals(sp.getUUID()) && !PlotProtection.isAdmin(sp))) { sp.closeContainer(); return; }
         String current = d.biomeId.isBlank() ? PlotBiomes.DEFAULT_ID : d.biomeId;
+        List<String> biomes = PlotBiomes.allBiomeIds(plots(sp)); // every registered biome — mods included
+        int pages = Math.max(1, (biomes.size() + PER_PAGE - 1) / PER_PAGE);
+        if (page < 0) page = 0;
+        if (page >= pages) page = pages - 1;
+        final int pg = page;
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x6, sp, false);
-        g.setTitle(Component.literal("Plot biome"));
+        g.setTitle(Component.literal("Plot biome  (" + (pg + 1) + "/" + pages + ")"));
+        int start = pg * PER_PAGE;
+        int end = Math.min(biomes.size(), start + PER_PAGE);
         int slot = 0;
-        for (PlotBiomes.Choice c : PlotBiomes.CHOICES) {
-            if (!PlotBiomes.available(plots(sp), c.biomeId())) continue; // e.g. sulfur_caves is 26.2-only
-            boolean chosen = c.biomeId().equals(current);
-            g.setSlot(slot++, btn(itemByRegistryId(c.iconItemId()), c.label() + (chosen ? "  ✔" : ""),
-                    chosen ? "Your plot's current biome." : "Click to paint your plot this biome.",
+        for (int idx = start; idx < end; idx++) {
+            final String id = biomes.get(idx);
+            boolean chosen = id.equals(current);
+            boolean modded = !id.startsWith("minecraft:");
+            String lore = chosen ? "Your plot's current biome."
+                    : (modded ? "From " + id.substring(0, id.indexOf(':')) + ". Click to paint your plot."
+                              : "Click to paint your plot this biome.");
+            g.setSlot(slot++, btn(itemByRegistryId(PlotBiomes.iconFor(id)),
+                    PlotBiomes.labelOf(id) + (chosen ? "  ✔" : ""), lore,
                     (i, t, a, gg) -> {
-                        d.biomeId = c.biomeId().equals(PlotBiomes.DEFAULT_ID) ? "" : c.biomeId();
+                        d.biomeId = id;
                         PlotManager.save();
                         int n = PlotBiomes.applyBiome(plots(sp), d);
-                        sp.sendSystemMessage(Component.literal("[Plots] Biome set to " + c.label()
+                        sp.sendSystemMessage(Component.literal("[Plots] Biome set to " + PlotBiomes.labelOf(id)
                                 + (n > 0 ? "." : " (no chunks updated — is the plot world loaded?)")));
-                        biomePicker(sp, anchor);
+                        biomePicker(sp, anchor, pg);
                     }));
         }
-        g.setSlot(49, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> settings(sp, anchor)));
+        // bottom row: paging + default + back (same layout as the floor picker)
+        if (pg > 0) g.setSlot(45, btn(Items.ARROW, "Previous page", "", (i, t, a, gg) -> biomePicker(sp, anchor, pg - 1)));
+        boolean isDefault = d.biomeId.isBlank();
+        g.setSlot(47, btn(Items.GRASS_BLOCK, "Default" + (isDefault ? "  ✔" : ""),
+                "The plot world's normal look.", (i, t, a, gg) -> {
+            d.biomeId = "";
+            PlotManager.save();
+            PlotBiomes.applyBiome(plots(sp), d);
+            sp.sendSystemMessage(Component.literal("[Plots] Biome reset to default."));
+            biomePicker(sp, anchor, pg);
+        }));
+        g.setSlot(49, btn(Items.BARRIER, "Back", "", (i, t, a, gg) -> settings(sp, anchor)));
+        g.setSlot(51, info(Items.PAPER, "Page " + (pg + 1) + " / " + pages, biomes.size() + " biomes"));
+        if (pg < pages - 1) g.setSlot(53, btn(Items.ARROW, "Next page", "", (i, t, a, gg) -> biomePicker(sp, anchor, pg + 1)));
         g.open();
     }
 

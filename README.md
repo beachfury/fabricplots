@@ -22,9 +22,10 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   plot's edge ring. Designs persist, survive `/plot clear`, and follow merges.
 - **Sky & weather per plot** — the owner picks "always sunset", "always rain", etc.; visitors standing on the
   plot see it (client-side illusion — the server's real time/weather never changes). Works for Bedrock too.
-- **Per-plot biome** — pick from 26 biomes and your plot is repainted (grass, foliage and sky tint) via
-  vanilla's `/fillbiome` machinery. Persists in the world, covers merged shapes, and resets automatically
-  when a plot is deleted or expires. Mobs the biome spawns are **confined to the plot** (tethered AI + a
+- **Per-plot biome** — a paginated picker of **every biome in the world's registry** (vanilla, datapacks,
+  and worldgen mods appear automatically) repaints your plot — grass, foliage and sky tint — via vanilla's
+  `/fillbiome` machinery. Persists in the world, covers merged shapes, and resets automatically when a plot
+  is deleted or expires. Mobs the biome spawns are **confined to the plot** (tethered AI + a
   teleport-back sweep), so a Nether Wastes plot keeps its piglins to itself.
 - **Placeholders** — with [Placeholder API](https://placeholders.pb4.eu/) installed, `%fabricplots:owned%`,
   `%fabricplots:total%`, `%fabricplots:my_likes%`, `%fabricplots:plot_name%`, `%fabricplots:plot_owner%`,
