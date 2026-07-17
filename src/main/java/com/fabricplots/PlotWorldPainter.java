@@ -71,7 +71,16 @@ public final class PlotWorldPainter {
 
 
     @FunctionalInterface
-    private interface Setter { void set(int x, int y, int z, BlockState state); }
+    public interface Setter { void set(int x, int y, int z, BlockState state); }
+
+    /**
+     * Feed one column's canonical surface blocks (base + furniture) into a setter — pure math, no
+     * world access. The street sweeper diffs the world against this to self-heal roads.
+     */
+    public static void paintColumnCanonical(int x, int z, Setter setter) {
+        paintBase(x, z, setter, true);   // clearTall=true also emits the expected AIR airspace
+        decorate(x, z, setter);          // lamps etc. (deterministic per column)
+    }
 
     private static boolean loggedError = false;
 

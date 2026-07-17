@@ -44,7 +44,29 @@ public final class PlotProtection {
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (!(world instanceof ServerLevel)) return InteractionResult.PASS;
             if (!isPlots(world)) return InteractionResult.PASS;
-            return allowed(player, hit.getBlockPos()) ? InteractionResult.PASS : InteractionResult.FAIL;
+            BlockPos pos = hit.getBlockPos();
+            net.minecraft.world.item.ItemStack held = player.getItemInHand(hand);
+            // Respawn anchors ONLY explode in this dimension (they can't set spawn here) and end
+            // crystals are bombs — their blasts bypass the TNT gamerule, so ban both outright.
+            if (held.getItem() == net.minecraft.world.item.Items.RESPAWN_ANCHOR
+                    || held.getItem() == net.minecraft.world.item.Items.END_CRYSTAL
+                    || world.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.RESPAWN_ANCHOR)) {
+                if (player instanceof ServerPlayer sp) {
+                    sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                            "[Plots] Respawn anchors and end crystals are disabled here — they only explode."));
+                }
+                return InteractionResult.FAIL;
+            }
+            if (!allowed(player, pos)) return InteractionResult.FAIL;
+            // Placing a block (or fluid bucket) targets the clicked face's NEIGHBOUR unless the clicked
+            // block is replaceable — that landing spot must be buildable too, or you could stand on the
+            // street and pour blocks over the curb by clicking an in-plot block's outward face.
+            if (held.getItem() instanceof net.minecraft.world.item.BlockItem
+                    || held.getItem() instanceof net.minecraft.world.item.BucketItem) {
+                BlockPos target = world.getBlockState(pos).canBeReplaced() ? pos : pos.relative(hit.getDirection());
+                if (!target.equals(pos) && !allowed(player, target)) return InteractionResult.FAIL;
+            }
+            return InteractionResult.PASS;
         });
 
         // Left-click attack on a block (creative instant-break starts here).
