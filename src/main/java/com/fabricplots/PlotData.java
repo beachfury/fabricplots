@@ -16,6 +16,7 @@ public final class PlotData {
     public boolean pvp = false;     // is player-vs-player combat allowed on this plot?
     public String greeting = "";    // optional custom welcome (action bar) shown to visitors; blank = default
     public String ambience = "";    // client-only sky illusion "time:weather" (e.g. "sunset:rain"); blank = off
+    public String biomeId = "";     // plot biome (e.g. "minecraft:cherry_grove"); blank = the default plot biome
     public String sidewalkPattern = ""; // designer: 4 rows x 9 cols (3 sidewalk + curb), rows '|', cells ',', "" = air
     public String wallPattern = "";     // designer: 3 rows x 9 cols (bottom->top) on the plot's edge ring
     public transient volatile String[][] sidewalkGridCache; // parsed-pattern caches (see PlotStyle.grid)

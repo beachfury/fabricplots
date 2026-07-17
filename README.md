@@ -22,6 +22,9 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   plot's edge ring. Designs persist, survive `/plot clear`, and follow merges.
 - **Sky & weather per plot** — the owner picks "always sunset", "always rain", etc.; visitors standing on the
   plot see it (client-side illusion — the server's real time/weather never changes). Works for Bedrock too.
+- **Per-plot biome** — pick from 26 biomes and your plot is repainted (grass, foliage and sky tint) via
+  vanilla's `/fillbiome` machinery. Persists in the world, covers merged shapes, and resets automatically
+  when a plot is deleted or expires.
 - **Custom greeting** — an owner-set welcome line shown to visitors stepping onto the plot.
 - **Transfer & kick** — hand a plot to another player (`/plot transfer` or the menu), and send unwanted
   visitors back to spawn (`/plot kick` or the menu).

@@ -150,7 +150,50 @@ public final class PlotMenus {
             settings(sp, anchor);
         }));
         g.setSlot(24, btn(Items.TNT, "Clear plot", "Reset every block to flat ground.", (i, t, a, gg) -> confirmClear(sp, anchor)));
+        g.setSlot(25, btn(biomeIcon(d), "Biome",
+                "Currently: " + PlotBiomes.labelOf(d.biomeId) + " — recolor grass, leaves and sky on your plot.",
+                (i, t, a, gg) -> biomePicker(sp, anchor)));
         g.setSlot(31, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> myPlots(sp, 0)));
+        g.open();
+    }
+
+    private static Item biomeIcon(PlotData d) {
+        for (PlotBiomes.Choice c : PlotBiomes.CHOICES)
+            if (c.biomeId().equals(d.biomeId.isBlank() ? PlotBiomes.DEFAULT_ID : d.biomeId))
+                return itemByRegistryId(c.iconItemId());
+        return Items.GRASS_BLOCK;
+    }
+
+    private static Item itemByRegistryId(String id) {
+        try {
+            Item it = BuiltInRegistries.ITEM.getValue(Identifier.parse(id));
+            return (it == null || it == Items.AIR) ? Items.GRASS_BLOCK : it;
+        } catch (Exception e) { return Items.GRASS_BLOCK; }
+    }
+
+    // ---- biome picker ----------------------------------------------------
+
+    public static void biomePicker(ServerPlayer sp, PlotPos anchor) {
+        PlotData d = PlotManager.get(anchor);
+        if (d == null || (!d.owner.equals(sp.getUUID()) && !PlotProtection.isAdmin(sp))) { sp.closeContainer(); return; }
+        String current = d.biomeId.isBlank() ? PlotBiomes.DEFAULT_ID : d.biomeId;
+        SimpleGui g = new SimpleGui(MenuType.GENERIC_9x6, sp, false);
+        g.setTitle(Component.literal("Plot biome"));
+        int slot = 0;
+        for (PlotBiomes.Choice c : PlotBiomes.CHOICES) {
+            boolean chosen = c.biomeId().equals(current);
+            g.setSlot(slot++, btn(itemByRegistryId(c.iconItemId()), c.label() + (chosen ? "  ✔" : ""),
+                    chosen ? "Your plot's current biome." : "Click to paint your plot this biome.",
+                    (i, t, a, gg) -> {
+                        d.biomeId = c.biomeId().equals(PlotBiomes.DEFAULT_ID) ? "" : c.biomeId();
+                        PlotManager.save();
+                        int n = PlotBiomes.applyBiome(plots(sp), d);
+                        sp.sendSystemMessage(Component.literal("[Plots] Biome set to " + c.label()
+                                + (n > 0 ? "." : " (no chunks updated — is the plot world loaded?)")));
+                        biomePicker(sp, anchor);
+                    }));
+        }
+        g.setSlot(49, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> settings(sp, anchor)));
         g.open();
     }
 

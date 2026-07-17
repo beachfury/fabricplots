@@ -19,6 +19,11 @@ The customization update.
 - **Sky & weather per plot.** Owners pick a look — always day/noon/sunset/night/midnight and/or
   clear/rain/thunder — and visitors standing on the plot see it. Pure client-side illusion via play packets:
   the server's real time and weather never change, and Bedrock players (Geyser) see it too.
+- **Per-plot biome.** Pick from 26 biomes (Cherry Grove, Desert, Mushroom Fields, Crimson Forest, The End…)
+  in the settings menu and your whole plot — cores, sidewalk ring, merged interiors — is repainted to it:
+  grass, foliage and sky tint change the moment anyone steps on. This one is real biome data (painted through
+  vanilla's /fillbiome machinery), so it persists in the world, survives `/plot clear`, and resets to the
+  plot-world default when the plot is deleted or expires.
 - **Custom greeting.** An owner-set action-bar welcome shown when someone steps onto the plot (replaces the
   stock "Welcome to X's plot" line).
 - **Transfer ownership.** Give a plot to another online player — `/plot transfer <player>` or the settings
