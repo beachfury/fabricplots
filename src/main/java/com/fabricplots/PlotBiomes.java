@@ -11,6 +11,7 @@ import net.minecraft.world.level.biome.Biome;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Per-plot biome painting: the owner picks a biome and the plot's columns (cores, sidewalk ring,
@@ -28,53 +29,94 @@ public final class PlotBiomes {
     /** XZ tile side per fill call: 8*8*272 blocks ≈ 17k, safely under the default 32768 cap. */
     private static final int TILE = 8;
 
-    public record Choice(String biomeId, String iconItemId, String label) {}
-
-    /** Curated, visually distinct biomes (icons are item registry ids — version-safe). */
-    public static final List<Choice> CHOICES = List.of(
-            new Choice(DEFAULT_ID, "minecraft:grass_block", "Default"),
-            new Choice("minecraft:sunflower_plains", "minecraft:sunflower", "Sunflower Plains"),
-            new Choice("minecraft:flower_forest", "minecraft:poppy", "Flower Forest"),
-            new Choice("minecraft:birch_forest", "minecraft:birch_sapling", "Birch Forest"),
-            new Choice("minecraft:dark_forest", "minecraft:dark_oak_sapling", "Dark Forest"),
-            new Choice("minecraft:cherry_grove", "minecraft:cherry_sapling", "Cherry Grove"),
-            new Choice("minecraft:pale_garden", "minecraft:pale_oak_sapling", "Pale Garden"),
-            new Choice("minecraft:taiga", "minecraft:spruce_sapling", "Taiga"),
-            new Choice("minecraft:snowy_plains", "minecraft:snow_block", "Snowy Plains"),
-            new Choice("minecraft:ice_spikes", "minecraft:packed_ice", "Ice Spikes"),
-            new Choice("minecraft:swamp", "minecraft:lily_pad", "Swamp"),
-            new Choice("minecraft:mangrove_swamp", "minecraft:mangrove_propagule", "Mangrove Swamp"),
-            new Choice("minecraft:jungle", "minecraft:jungle_sapling", "Jungle"),
-            new Choice("minecraft:bamboo_jungle", "minecraft:bamboo", "Bamboo Jungle"),
-            new Choice("minecraft:desert", "minecraft:sand", "Desert"),
-            new Choice("minecraft:badlands", "minecraft:terracotta", "Badlands"),
-            new Choice("minecraft:savanna", "minecraft:acacia_sapling", "Savanna"),
-            new Choice("minecraft:mushroom_fields", "minecraft:red_mushroom", "Mushroom Fields"),
-            new Choice("minecraft:lush_caves", "minecraft:moss_block", "Lush Caves"),
-            new Choice("minecraft:deep_dark", "minecraft:sculk", "Deep Dark"),
-            new Choice("minecraft:warm_ocean", "minecraft:brain_coral", "Warm Ocean"),
-            new Choice("minecraft:crimson_forest", "minecraft:crimson_fungus", "Crimson Forest"),
-            new Choice("minecraft:warped_forest", "minecraft:warped_fungus", "Warped Forest"),
-            new Choice("minecraft:soul_sand_valley", "minecraft:soul_sand", "Soul Sand Valley"),
-            new Choice("minecraft:nether_wastes", "minecraft:netherrack", "Nether Wastes"),
-            new Choice("minecraft:sulfur_caves", "minecraft:sulfur", "Sulfur Caves"), // 26.2+ only (registry-filtered)
-            new Choice("minecraft:the_end", "minecraft:end_stone", "The End"));
-
     private PlotBiomes() {}
 
-    /** True if the biome exists in this Minecraft version's registry (filters version-specific entries). */
-    public static boolean available(ServerLevel level, String biomeId) {
+    /**
+     * Every biome registered in this world — vanilla, datapacks, and worldgen mods alike — sorted
+     * with the minecraft namespace first, then other namespaces alphabetically. The plot world's own
+     * default biome is excluded (the picker has a dedicated Default button for it). Built from the
+     * live dynamic registry, so new biomes (a new MC version, an installed biome mod) appear
+     * automatically with zero code changes.
+     */
+    public static List<String> allBiomeIds(ServerLevel level) {
+        List<String> out = new ArrayList<>();
         try {
-            return level.registryAccess().lookupOrThrow(Registries.BIOME)
-                    .get(ResourceKey.create(Registries.BIOME, Identifier.parse(biomeId))).isPresent();
+            for (Identifier key : level.registryAccess().lookupOrThrow(Registries.BIOME).keySet()) {
+                String id = key.toString();
+                if (!id.equals(DEFAULT_ID)) out.add(id);
+            }
         } catch (Exception e) {
-            return false;
+            System.err.println("[FabricPlots] Failed to list biomes: " + e);
         }
+        out.sort((a, b) -> {
+            boolean va = a.startsWith("minecraft:"), vb = b.startsWith("minecraft:");
+            if (va != vb) return va ? -1 : 1; // vanilla first, modded after
+            return a.compareTo(b);
+        });
+        return out;
     }
 
+    /** "minecraft:frozen_ocean" → "Frozen Ocean". */
     public static String labelOf(String biomeId) {
-        for (Choice c : CHOICES) if (c.biomeId().equals(biomeId)) return c.label();
-        return biomeId.isBlank() ? "Default" : biomeId;
+        if (biomeId == null || biomeId.isBlank() || biomeId.equals(DEFAULT_ID)) return "Default";
+        String path = biomeId.contains(":") ? biomeId.substring(biomeId.indexOf(':') + 1) : biomeId;
+        StringBuilder sb = new StringBuilder();
+        for (String w : path.replace('/', '_').split("_")) {
+            if (w.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
+        }
+        return sb.toString();
+    }
+
+    /** Curated icons for well-known biomes (item registry ids — version-safe). */
+    private static final Map<String, String> ICONS = Map.ofEntries(
+            Map.entry("minecraft:plains", "minecraft:grass_block"),
+            Map.entry("minecraft:sunflower_plains", "minecraft:sunflower"),
+            Map.entry("minecraft:flower_forest", "minecraft:poppy"),
+            Map.entry("minecraft:birch_forest", "minecraft:birch_sapling"),
+            Map.entry("minecraft:dark_forest", "minecraft:dark_oak_sapling"),
+            Map.entry("minecraft:cherry_grove", "minecraft:cherry_sapling"),
+            Map.entry("minecraft:pale_garden", "minecraft:pale_oak_sapling"),
+            Map.entry("minecraft:ice_spikes", "minecraft:packed_ice"),
+            Map.entry("minecraft:mangrove_swamp", "minecraft:mangrove_propagule"),
+            Map.entry("minecraft:bamboo_jungle", "minecraft:bamboo"),
+            Map.entry("minecraft:mushroom_fields", "minecraft:red_mushroom"),
+            Map.entry("minecraft:lush_caves", "minecraft:moss_block"),
+            Map.entry("minecraft:deep_dark", "minecraft:sculk"),
+            Map.entry("minecraft:dripstone_caves", "minecraft:pointed_dripstone"),
+            Map.entry("minecraft:crimson_forest", "minecraft:crimson_fungus"),
+            Map.entry("minecraft:warped_forest", "minecraft:warped_fungus"),
+            Map.entry("minecraft:soul_sand_valley", "minecraft:soul_sand"),
+            Map.entry("minecraft:basalt_deltas", "minecraft:basalt"),
+            Map.entry("minecraft:sulfur_caves", "minecraft:sulfur"),
+            Map.entry("minecraft:deep_cold_ocean", "minecraft:ice"));
+
+    /** Icon item id for a biome: curated first, then a keyword guess, then grass. */
+    public static String iconFor(String biomeId) {
+        String curated = ICONS.get(biomeId);
+        if (curated != null) return curated;
+        String p = biomeId.contains(":") ? biomeId.substring(biomeId.indexOf(':') + 1) : biomeId;
+        if (p.contains("nether") || p.contains("wastes")) return "minecraft:netherrack";
+        if (p.contains("end")) return "minecraft:end_stone";
+        if (p.contains("mushroom")) return "minecraft:red_mushroom";
+        if (p.contains("cherry")) return "minecraft:cherry_sapling";
+        if (p.contains("bamboo")) return "minecraft:bamboo";
+        if (p.contains("jungle")) return "minecraft:jungle_sapling";
+        if (p.contains("birch")) return "minecraft:birch_sapling";
+        if (p.contains("taiga") || p.contains("grove")) return "minecraft:spruce_sapling";
+        if (p.contains("savanna") || p.contains("acacia")) return "minecraft:acacia_sapling";
+        if (p.contains("swamp")) return "minecraft:lily_pad";
+        if (p.contains("desert")) return "minecraft:sand";
+        if (p.contains("badlands") || p.contains("mesa")) return "minecraft:terracotta";
+        if (p.contains("beach") || p.contains("shore")) return "minecraft:sand";
+        if (p.contains("frozen") || p.contains("snow") || p.contains("ice") || p.contains("frost")) return "minecraft:snow_block";
+        if (p.contains("ocean") || p.contains("river") || p.contains("lake")) return "minecraft:water_bucket";
+        if (p.contains("cave") || p.contains("cavern") || p.contains("deep")) return "minecraft:stone";
+        if (p.contains("peak") || p.contains("hill") || p.contains("mountain") || p.contains("windswept") || p.contains("meadow")) return "minecraft:stone";
+        if (p.contains("forest") || p.contains("wood")) return "minecraft:oak_sapling";
+        if (p.contains("sky") || p.contains("void")) return "minecraft:glass";
+        return "minecraft:grass_block";
     }
 
     /** Paint the plot's chosen biome (blank = the default plot biome) across everything it owns. */
