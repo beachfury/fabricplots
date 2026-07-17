@@ -223,6 +223,9 @@ public final class PlotWorldPainter {
                 columns++;
             }
         }
+        // Designer styling survives a clear, like the floor block does.
+        if (!data.sidewalkPattern.isBlank()) PlotStyle.applySidewalk(level, data);
+        if (!data.wallPattern.isBlank()) PlotStyle.applyWall(level, data);
         return columns;
     }
 
@@ -352,9 +355,15 @@ public final class PlotWorldPainter {
 
         // Buildable (a claimed cell's sidewalk, or a merge's dissolved interior): tuff sidewalk within
         // SIDEWALK_DEPTH of the edge, grass deeper in. Perimeter stairs/road fall through to geometry below.
-        if (PlotManager.owningPlot(x, z) != null) {
+        PlotData ownedBy = PlotManager.owningPlot(x, z);
+        if (ownedBy != null) {
             setter.set(x, PlotConfig.ROAD_Y, z, FILL);
-            setter.set(x, PlotConfig.GROUND_Y, z, PlotManager.nearMergeEdge(x, z) ? SIDEWALK : GRASS);
+            BlockState surf = GRASS;
+            if (PlotManager.nearMergeEdge(x, z)) {
+                BlockState patterned = PlotStyle.sidewalkState(ownedBy, x, z);
+                surf = patterned != null ? patterned : SIDEWALK;
+            }
+            setter.set(x, PlotConfig.GROUND_Y, z, surf);
             return true;
         }
 
@@ -372,7 +381,12 @@ public final class PlotWorldPainter {
         // the boundary check the curb line would break there.
         final boolean nearOwned = adjacentToOwned(x, z);
         if (rd == 3 || nearOwned) {
-            if (rd == 3 && !corner) {
+            // A plot's sidewalk pattern also styles its curb line (the pattern's last row).
+            PlotData curbPlot = PlotStyle.curbOwner(x, z);
+            BlockState patternedCurb = curbPlot != null ? PlotStyle.curbState(curbPlot, x, z) : null;
+            if (patternedCurb != null) {
+                setter.set(x, PlotConfig.GROUND_Y, z, patternedCurb);
+            } else if (rd == 3 && !corner) {
                 // Clean straight run → keep the stair slope (these tile perfectly).
                 setter.set(x, PlotConfig.GROUND_Y, z, Blocks.STONE_STAIRS.defaultBlockState()
                         .setValue(BlockStateProperties.HORIZONTAL_FACING, stairFacing(lx, lz, roadX, roadZ))

@@ -117,6 +117,10 @@ public final class PlotManager {
             single.name = d.name;
             single.floorBlockId = d.floorBlockId;
             single.pvp = d.pvp;
+            single.greeting = d.greeting;
+            single.ambience = d.ambience;
+            single.sidewalkPattern = d.sidewalkPattern;
+            single.wallPattern = d.wallPattern;
             single.paidAmount = perCellPaid;
             single.trusted.addAll(d.trusted);
             single.denied.addAll(d.denied);
@@ -229,6 +233,10 @@ public final class PlotManager {
                 if (parts.length > 9 && !parts[9].isBlank())
                     for (String u : parts[9].split(",")) if (!u.isBlank()) d.likes.add(UUID.fromString(u.trim()));
                 if (parts.length > 10 && !parts[10].isBlank()) { try { d.paidAmount = Long.parseLong(parts[10].trim()); } catch (NumberFormatException ignored) {} }
+                if (parts.length > 11) d.greeting = parts[11];
+                if (parts.length > 12) d.ambience = parts[12];
+                if (parts.length > 13) d.sidewalkPattern = parts[13];
+                if (parts.length > 14) d.wallPattern = parts[14];
                 for (PlotPos c : d.cells) PLOTS.put(c, d);
             } catch (Exception e) {
                 System.err.println("[FabricPlots] Skipped bad plot line: " + line + " (" + e + ")");
@@ -258,7 +266,8 @@ public final class PlotManager {
             String home = d.home == null ? "" : d.home.getX() + ":" + d.home.getY() + ":" + d.home.getZ();
             String floor = d.floorBlockId == null ? "" : d.floorBlockId;
             lines.add(d.owner + ";" + d.ownerName + ";" + tj + ";" + cj + ";" + d.name + ";" + dj + ";" + home
-                    + ";" + floor + ";" + d.pvp + ";" + lj + ";" + d.paidAmount);
+                    + ";" + floor + ";" + d.pvp + ";" + lj + ";" + d.paidAmount
+                    + ";" + d.greeting + ";" + d.ambience + ";" + d.sidewalkPattern + ";" + d.wallPattern);
         }
         try {
             Files.write(saveFile, lines);

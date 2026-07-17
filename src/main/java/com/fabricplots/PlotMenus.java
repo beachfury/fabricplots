@@ -65,7 +65,8 @@ public final class PlotMenus {
             sp.teleportTo(plots(sp), PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5, Set.of(), sp.getYRot(), 0f, false);
             g.close();
         }));
-        g.setSlot(22, btn(Items.NETHER_STAR, "Top Plots", "Browse the most-liked plots and visit them.", (i, t, a, gg) -> topPlots(sp, 0)));
+        g.setSlot(20, btn(Items.SPYGLASS, "Browse Plots", "Every claimed plot — visit any of them.", (i, t, a, gg) -> browseAll(sp, 0)));
+        g.setSlot(24, btn(Items.NETHER_STAR, "Top Plots", "Browse the most-liked plots and visit them.", (i, t, a, gg) -> topPlots(sp, 0)));
         g.open();
     }
 
@@ -111,25 +112,182 @@ public final class PlotMenus {
         PlotData d = PlotManager.get(anchor);
         if (d == null || (!d.owner.equals(sp.getUUID()) && !PlotProtection.isAdmin(sp))) { sp.closeContainer(); return; }
         String title = d.name.isBlank() ? "Plot " + anchor.px() + ", " + anchor.pz() : d.name;
-        SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
+        SimpleGui g = new SimpleGui(MenuType.GENERIC_9x4, sp, false);
         g.setTitle(Component.literal(title));
         g.setSlot(10, btn(Items.NAME_TAG, "Rename plot", "Currently: " + (d.name.isBlank() ? "(unnamed)" : d.name), (i, t, a, gg) ->
-                anvil(sp, "Plot name", d.name, txt -> { d.name = txt; PlotManager.save(); settings(sp, anchor); })));
+                anvil(sp, "Plot name", d.name, txt -> { d.name = clean(txt); PlotManager.save(); settings(sp, anchor); })));
         g.setSlot(11, btn(floorItem(d), "Floor block", "Currently: " + floorName(d) + ". Click to recolor your plot's ground.",
                 (i, t, a, gg) -> floorPicker(sp, anchor, 0)));
-        g.setSlot(12, btn(Items.PLAYER_HEAD, "Trusted (" + d.trusted.size() + ")", "People who can build here.", (i, t, a, gg) -> members(sp, anchor, false, 0)));
-        g.setSlot(13, btn(Items.IRON_BARS, "Denied (" + d.denied.size() + ")", "People banned from this plot.", (i, t, a, gg) -> members(sp, anchor, true, 0)));
-        g.setSlot(14, btn(Items.ENDER_PEARL, "Teleport here", "Go to this plot.", (i, t, a, gg) -> {
+        g.setSlot(12, btn(Items.CHISELED_TUFF_BRICKS, "Sidewalk designer",
+                "Design your sidewalk from any blocks — the pattern repeats along every edge.",
+                (i, t, a, gg) -> PlotDesignerGui.openSidewalk(sp, anchor, () -> settings(sp, anchor))));
+        g.setSlot(13, btn(Items.COBBLESTONE_WALL, "Wall designer",
+                "Design a wall (up to 3 tall) around your plot's edge.",
+                (i, t, a, gg) -> PlotDesignerGui.openWall(sp, anchor, () -> settings(sp, anchor))));
+        g.setSlot(14, btn(Items.PLAYER_HEAD, "Trusted (" + d.trusted.size() + ")", "People who can build here.", (i, t, a, gg) -> members(sp, anchor, false, 0)));
+        g.setSlot(15, btn(Items.IRON_BARS, "Denied (" + d.denied.size() + ")", "People banned from this plot.", (i, t, a, gg) -> members(sp, anchor, true, 0)));
+        g.setSlot(16, btn(Items.ENDER_PEARL, "Teleport here", "Go to this plot.", (i, t, a, gg) -> {
             int[] xz = PlotManager.homeXZ(anchor);
             sp.teleportTo(plots(sp), xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5, Set.of(), sp.getYRot(), 0f, false);
             g.close();
         }));
-        g.setSlot(15, btn(d.pvp ? Items.DIAMOND_SWORD : Items.SHIELD, "PvP: " + (d.pvp ? "ON" : "OFF"),
+        g.setSlot(19, btn(d.pvp ? Items.DIAMOND_SWORD : Items.SHIELD, "PvP: " + (d.pvp ? "ON" : "OFF"),
                 d.pvp ? "Players can fight here. Click to make it safe." : "This plot is safe. Click to allow PvP.",
                 (i, t, a, gg) -> { d.pvp = !d.pvp; PlotManager.save(); settings(sp, anchor); }));
-        g.setSlot(16, btn(Items.TNT, "Clear plot", "Reset every block to flat ground.", (i, t, a, gg) -> confirmClear(sp, anchor)));
-        g.setSlot(22, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> myPlots(sp, 0)));
+        g.setSlot(20, btn(Items.CLOCK, "Sky & weather",
+                ambienceLabel(d) + " — what visitors see while on your plot.",
+                (i, t, a, gg) -> ambiencePicker(sp, anchor)));
+        g.setSlot(21, btn(Items.WRITABLE_BOOK, "Greeting",
+                d.greeting.isBlank() ? "Set a custom welcome for visitors." : "Currently: \"" + d.greeting + "\"",
+                (i, t, a, gg) -> anvil(sp, "Greeting (visitors see this)", d.greeting, txt -> {
+                    d.greeting = clean(txt); PlotManager.save(); settings(sp, anchor);
+                })));
+        g.setSlot(22, btn(Items.ENDER_EYE, "Transfer plot", "Give this plot to another player.", (i, t, a, gg) -> transferPicker(sp, anchor, 0)));
+        g.setSlot(23, btn(Items.FEATHER, "Kick visitors", "Send everyone else on this plot to spawn.", (i, t, a, gg) -> {
+            int n = kickVisitors(sp, d);
+            sp.sendSystemMessage(Component.literal("[Plots] Sent " + n + " visitor" + (n == 1 ? "" : "s") + " to spawn."));
+            settings(sp, anchor);
+        }));
+        g.setSlot(24, btn(Items.TNT, "Clear plot", "Reset every block to flat ground.", (i, t, a, gg) -> confirmClear(sp, anchor)));
+        g.setSlot(31, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> myPlots(sp, 0)));
         g.open();
+    }
+
+    /** Strip characters that would corrupt the ';'-separated save file, and cap the length. */
+    private static String clean(String txt) {
+        String s = txt.replace(";", "").replace("|", "").replace(",", "").trim();
+        return s.length() > 48 ? s.substring(0, 48) : s;
+    }
+
+    private static String ambienceLabel(PlotData d) {
+        if (d.ambience.isBlank()) return "Real sky";
+        String t = PlotAmbience.timeOf(d.ambience);
+        String w = PlotAmbience.weatherOf(d.ambience);
+        return (PlotAmbience.timeTicks(t) < 0 ? "Real time" : "Always " + t) + ", "
+                + ("real".equals(w) ? "real weather" : "always " + w);
+    }
+
+    // ---- sky & weather illusion picker -----------------------------------
+
+    public static void ambiencePicker(ServerPlayer sp, PlotPos anchor) {
+        PlotData d = PlotManager.get(anchor);
+        if (d == null || (!d.owner.equals(sp.getUUID()) && !PlotProtection.isAdmin(sp))) { sp.closeContainer(); return; }
+        String curTime = PlotAmbience.timeOf(d.ambience.isBlank() ? "real:real" : d.ambience);
+        String curWeather = PlotAmbience.weatherOf(d.ambience.isBlank() ? "real:real" : d.ambience);
+        SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
+        g.setTitle(Component.literal("Sky & weather (visitors only see it)"));
+        Item[] timeIcons = { Items.COMPASS, Items.SUNFLOWER, Items.GLOWSTONE, Items.ORANGE_TULIP, Items.LANTERN, Items.OBSIDIAN };
+        for (int i = 0; i < PlotAmbience.TIMES.length; i++) {
+            final String time = PlotAmbience.TIMES[i];
+            boolean chosen = time.equals(curTime);
+            g.setSlot(1 + i, btn(timeIcons[i], niceWord(time) + (chosen ? "  ✔" : ""),
+                    "real".equals(time) ? "Use the real time of day." : "Visitors always see " + time + " here.",
+                    (x, t, a, gg) -> { d.ambience = PlotAmbience.compose(time, PlotAmbience.weatherOf(d.ambience.isBlank() ? "real:real" : d.ambience)); PlotManager.save(); ambiencePicker(sp, anchor); }));
+        }
+        Item[] weatherIcons = { Items.COMPASS, Items.GLASS, Items.WATER_BUCKET, Items.TRIDENT };
+        for (int i = 0; i < PlotAmbience.WEATHERS.length; i++) {
+            final String weather = PlotAmbience.WEATHERS[i];
+            boolean chosen = weather.equals(curWeather);
+            g.setSlot(10 + i, btn(weatherIcons[i], niceWord(weather) + (chosen ? "  ✔" : ""),
+                    "real".equals(weather) ? "Use the real weather." : "Visitors always see " + weather + " here.",
+                    (x, t, a, gg) -> { d.ambience = PlotAmbience.compose(PlotAmbience.timeOf(d.ambience.isBlank() ? "real:real" : d.ambience), weather); PlotManager.save(); ambiencePicker(sp, anchor); }));
+        }
+        g.setSlot(16, btn(Items.TNT, "Reset", "Back to the real sky.", (x, t, a, gg) -> { d.ambience = ""; PlotManager.save(); ambiencePicker(sp, anchor); }));
+        g.setSlot(22, btn(Items.ARROW, "Back", "", (x, t, a, gg) -> settings(sp, anchor)));
+        g.open();
+    }
+
+    private static String niceWord(String s) {
+        return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    // ---- transfer ownership ----------------------------------------------
+
+    public static void transferPicker(ServerPlayer sp, PlotPos anchor, int page) {
+        PlotData d = PlotManager.get(anchor);
+        if (d == null || (!d.owner.equals(sp.getUUID()) && !PlotProtection.isAdmin(sp))) { sp.closeContainer(); return; }
+        List<ServerPlayer> online = new ArrayList<>();
+        for (ServerPlayer pl : sp.level().getServer().getPlayerList().getPlayers())
+            if (!pl.getUUID().equals(d.owner)) online.add(pl);
+        SimpleGui g = new SimpleGui(MenuType.GENERIC_9x6, sp, false);
+        g.setTitle(Component.literal("Transfer plot — pick the new owner"));
+        int start = page * PER_PAGE;
+        for (int i = 0; i < PER_PAGE && start + i < online.size(); i++) {
+            ServerPlayer pl = online.get(start + i);
+            g.setSlot(i, new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(pl.getUUID())
+                    .setName(Component.literal(pl.getName().getString()))
+                    .setLore(List.of(Component.literal("Click to hand this plot over")))
+                    .setCallback((x, t, a, gg) -> confirmTransfer(sp, anchor, pl.getUUID(), pl.getName().getString())).build());
+        }
+        nav(g, page, start + PER_PAGE < online.size(), p -> transferPicker(sp, anchor, p), () -> settings(sp, anchor));
+        if (online.isEmpty()) g.setSlot(22, info(Items.BARRIER, "Nobody online", "The new owner must be online."));
+        g.open();
+    }
+
+    private static void confirmTransfer(ServerPlayer sp, PlotPos anchor, UUID newOwner, String newName) {
+        SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
+        g.setTitle(Component.literal("Give this plot to " + newName + "?"));
+        g.setSlot(11, btn(itemOf("minecraft:lime_concrete"), "Yes, transfer it",
+                "You lose access unless they trust you back.", (i, t, a, gg) -> {
+            PlotData d = PlotManager.get(anchor);
+            if (d != null) {
+                d.owner = newOwner;
+                d.ownerName = newName;
+                d.trusted.remove(newOwner);
+                d.denied.remove(newOwner);
+                PlotManager.save();
+                sp.sendSystemMessage(Component.literal("[Plots] Plot transferred to " + newName + "."));
+                ServerPlayer np = sp.level().getServer().getPlayerList().getPlayer(newOwner);
+                if (np != null) np.sendSystemMessage(Component.literal("[Plots] " + sp.getName().getString() + " gave you their plot!"));
+            }
+            myPlots(sp, 0);
+        }));
+        g.setSlot(15, btn(itemOf("minecraft:red_concrete"), "No, keep it", "", (i, t, a, gg) -> settings(sp, anchor)));
+        g.open();
+    }
+
+    /** Teleport every non-trusted visitor standing on the plot to the spawn plaza. */
+    public static int kickVisitors(ServerPlayer sp, PlotData d) {
+        int n = 0;
+        for (ServerPlayer pl : sp.level().getServer().getPlayerList().getPlayers()) {
+            if (pl.level().dimension() != FabricPlots.PLOTS_DIM) continue;
+            if (PlotManager.owningPlot(pl.getBlockX(), pl.getBlockZ()) != d) continue;
+            if (pl.getUUID().equals(d.owner) || d.canBuild(pl.getUUID()) || PlotProtection.isAdmin(pl)) continue;
+            pl.teleportTo((ServerLevel) pl.level(), PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5,
+                    Set.of(), pl.getYRot(), 0f, false);
+            pl.sendOverlayMessage(Component.literal("The plot owner sent you back to spawn."));
+            n++;
+        }
+        return n;
+    }
+
+    // ---- browse every plot -----------------------------------------------
+
+    public static void browseAll(ServerPlayer sp, int page) {
+        List<PlotData> all = new ArrayList<>(PlotManager.allPlots());
+        all.sort((a, b) -> browseLabel(sp, a).compareToIgnoreCase(browseLabel(sp, b)));
+        SimpleGui g = new SimpleGui(MenuType.GENERIC_9x6, sp, false);
+        g.setTitle(Component.literal("All Plots (" + all.size() + ")"));
+        int start = page * PER_PAGE;
+        for (int i = 0; i < PER_PAGE && start + i < all.size(); i++) {
+            PlotData d = all.get(start + i);
+            PlotPos anchor = d.cells.iterator().next();
+            String owner = nameOf(sp, d.owner);
+            String label = browseLabel(sp, d);
+            List<Component> lore = List.of(
+                    Component.literal("Owner: " + owner),
+                    Component.literal("♥ " + d.likes.size() + " · Cells: " + d.cells.size()),
+                    Component.literal("Click to visit or like"));
+            g.setSlot(i, new GuiElementBuilder(floorItem(d)).setName(Component.literal(label)).setLore(lore)
+                    .setCallback((x, t, a, gg) -> plotView(sp, anchor, () -> browseAll(sp, page))).build());
+        }
+        nav(g, page, start + PER_PAGE < all.size(), p -> browseAll(sp, p), () -> hub(sp));
+        if (all.isEmpty()) g.setSlot(22, info(Items.BARRIER, "No plots yet", "Claim one with /plot auto."));
+        g.open();
+    }
+
+    private static String browseLabel(ServerPlayer sp, PlotData d) {
+        return d.name.isBlank() ? nameOf(sp, d.owner) + "'s plot" : d.name;
     }
 
     private static void confirmClear(ServerPlayer sp, PlotPos anchor) {
