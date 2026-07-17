@@ -3,6 +3,14 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.1.12] — 2026-07-17
+
+### Fixed
+- **Portal return points now survive server restarts.** The "where you came from" position (used by return
+  portals and `/plot leave`) was only held in memory, so after a restart anyone still in the plot world was
+  sent to world spawn instead of back to their portal. Return points are now saved to
+  `fabricplots-returns.txt` alongside the portal file and reloaded on server start.
+
 ## [0.1.11] — 2026-07-13
 
 ### Fixed

@@ -101,6 +101,7 @@ public final class PortalManager {
     private static final Map<UUID, GlobalPos> RETURN_POINT = new HashMap<>();
     private static final Map<UUID, Long> COOLDOWN = new HashMap<>();
     private static Path saveFile;
+    private static Path returnsFile;
 
     private PortalManager() {}
 
@@ -291,6 +292,7 @@ public final class PortalManager {
         ServerLevel plots = server.getLevel(FabricPlots.PLOTS_DIM);
         if (plots == null) { msg(p, "Plot world isn't loaded."); return; }
         RETURN_POINT.put(p.getUUID(), GlobalPos.of(portal.dim, portal.anchor));
+        saveReturns(); // survive server restarts while players are in the plot world
         if (portal.type == DestType.PLAZA) {
             p.teleportTo(plots, PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5,
                     Set.of(), p.getYRot(), 0.0f, false);
@@ -426,8 +428,10 @@ public final class PortalManager {
 
     public static void load(MinecraftServer server) {
         saveFile = server.getWorldPath(LevelResource.ROOT).resolve("fabricplots-portals.txt");
+        returnsFile = server.getWorldPath(LevelResource.ROOT).resolve("fabricplots-returns.txt");
         ACTIVE.clear();
         FRAMES.clear();
+        loadReturns();
         if (!Files.exists(saveFile)) return;
         try {
             for (String line : Files.readAllLines(saveFile)) {
@@ -477,6 +481,43 @@ public final class PortalManager {
             Files.write(saveFile, lines);
         } catch (Exception e) {
             System.err.println("[FabricPlots] Failed to save portals: " + e);
+        }
+    }
+
+    /** Read the per-player return points (uuid;dimension;x;y;z per line). */
+    private static void loadReturns() {
+        RETURN_POINT.clear();
+        if (returnsFile == null || !Files.exists(returnsFile)) return;
+        try {
+            for (String line : Files.readAllLines(returnsFile)) {
+                if (line.isBlank()) continue;
+                try {
+                    String[] parts = line.split(";", -1);
+                    UUID id = UUID.fromString(parts[0]);
+                    ResourceKey<Level> dim = ResourceKey.create(Registries.DIMENSION, Identifier.parse(parts[1]));
+                    BlockPos pos = new BlockPos(Integer.parseInt(parts[2]), Integer.parseInt(parts[3]), Integer.parseInt(parts[4]));
+                    RETURN_POINT.put(id, GlobalPos.of(dim, pos));
+                } catch (Exception e) {
+                    System.err.println("[FabricPlots] Skipped bad return-point line: " + line + " (" + e + ")");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[FabricPlots] Failed to read return points: " + e);
+        }
+    }
+
+    private static void saveReturns() {
+        if (returnsFile == null) return;
+        List<String> lines = new ArrayList<>();
+        for (Map.Entry<UUID, GlobalPos> e : RETURN_POINT.entrySet()) {
+            GlobalPos gp = e.getValue();
+            lines.add(e.getKey() + ";" + gp.dimension().identifier() + ";"
+                    + gp.pos().getX() + ";" + gp.pos().getY() + ";" + gp.pos().getZ());
+        }
+        try {
+            Files.write(returnsFile, lines);
+        } catch (Exception e) {
+            System.err.println("[FabricPlots] Failed to save return points: " + e);
         }
     }
 
