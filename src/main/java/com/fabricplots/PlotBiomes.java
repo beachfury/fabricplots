@@ -57,9 +57,20 @@ public final class PlotBiomes {
             new Choice("minecraft:warped_forest", "minecraft:warped_fungus", "Warped Forest"),
             new Choice("minecraft:soul_sand_valley", "minecraft:soul_sand", "Soul Sand Valley"),
             new Choice("minecraft:nether_wastes", "minecraft:netherrack", "Nether Wastes"),
+            new Choice("minecraft:sulfur_caves", "minecraft:sulfur", "Sulfur Caves"), // 26.2+ only (registry-filtered)
             new Choice("minecraft:the_end", "minecraft:end_stone", "The End"));
 
     private PlotBiomes() {}
+
+    /** True if the biome exists in this Minecraft version's registry (filters version-specific entries). */
+    public static boolean available(ServerLevel level, String biomeId) {
+        try {
+            return level.registryAccess().lookupOrThrow(Registries.BIOME)
+                    .get(ResourceKey.create(Registries.BIOME, Identifier.parse(biomeId))).isPresent();
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     public static String labelOf(String biomeId) {
         for (Choice c : CHOICES) if (c.biomeId().equals(biomeId)) return c.label();

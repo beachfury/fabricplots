@@ -180,6 +180,7 @@ public final class PlotMenus {
         g.setTitle(Component.literal("Plot biome"));
         int slot = 0;
         for (PlotBiomes.Choice c : PlotBiomes.CHOICES) {
+            if (!PlotBiomes.available(plots(sp), c.biomeId())) continue; // e.g. sulfur_caves is 26.2-only
             boolean chosen = c.biomeId().equals(current);
             g.setSlot(slot++, btn(itemByRegistryId(c.iconItemId()), c.label() + (chosen ? "  ✔" : ""),
                     chosen ? "Your plot's current biome." : "Click to paint your plot this biome.",

@@ -19,7 +19,8 @@ The customization update.
 - **Sky & weather per plot.** Owners pick a look — always day/noon/sunset/night/midnight and/or
   clear/rain/thunder — and visitors standing on the plot see it. Pure client-side illusion via play packets:
   the server's real time and weather never change, and Bedrock players (Geyser) see it too.
-- **Per-plot biome.** Pick from 26 biomes (Cherry Grove, Desert, Mushroom Fields, Crimson Forest, The End…)
+- **Per-plot biome.** Pick from 26+ biomes (Cherry Grove, Desert, Mushroom Fields, Crimson Forest, The End —
+  and on 26.2, the new **Sulfur Caves**; version-specific biomes are filtered automatically)
   in the settings menu and your whole plot — cores, sidewalk ring, merged interiors — is repainted to it:
   grass, foliage and sky tint change the moment anyone steps on. This one is real biome data (painted through
   vanilla's /fillbiome machinery), so it persists in the world, survives `/plot clear`, and resets to the
