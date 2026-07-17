@@ -75,6 +75,7 @@ public final class PlotExpiry {
         ServerLevel plots = server.getLevel(FabricPlots.PLOTS_DIM);
         for (PlotData d : expire) {
             List<PlotPos> cells = new ArrayList<>(d.cells);
+            if (plots != null && !d.biomeId.isBlank()) PlotBiomes.resetBiome(plots, d); // before unclaim
             PlotManager.unclaim(cells.get(0)); // removes the whole group
             if (plots != null) for (PlotPos c : cells) PortalManager.removeExitPortalIfOrphan(plots, c);
             System.out.println("[FabricPlots] Released " + (d.ownerName.isBlank() ? d.owner : d.ownerName)

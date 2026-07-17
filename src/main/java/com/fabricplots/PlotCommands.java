@@ -662,6 +662,9 @@ public final class PlotCommands {
             var profiles = GameProfileArgument.getGameProfiles(ctx, "player");
             if (profiles.isEmpty()) { msg(ctx, "Unknown player."); return 0; }
             var profile = profiles.iterator().next();
+            for (PlotData d : PlotManager.allPlots())
+                if (profile.id().equals(d.owner) && !d.biomeId.isBlank())
+                    PlotBiomes.resetBiome(plotsLevel(ctx), d); // before removal — needs the cells
             int n = PlotManager.removeAllOwnedBy(profile.id());
             msg(ctx, "Freed " + n + " plot(s) previously owned by " + profile.name() + ".");
             return 1;
@@ -799,6 +802,7 @@ public final class PlotCommands {
                 refund = d.paidAmount * PlotsConfig.refundPercent / 100;
             }
             List<PlotPos> released = new ArrayList<>(d.cells);
+            if (!d.biomeId.isBlank()) PlotBiomes.resetBiome(plotsLevel(ctx), d); // before unclaim — needs the cells
             PlotManager.unclaim(pp);
             for (PlotPos c : released) PortalManager.removeExitPortalIfOrphan(plotsLevel(ctx), c);
             if (refund > 0) PlotEconomy.refund(p, refund);

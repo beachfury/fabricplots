@@ -119,6 +119,7 @@ public final class PlotManager {
             single.pvp = d.pvp;
             single.greeting = d.greeting;
             single.ambience = d.ambience;
+            single.biomeId = d.biomeId;
             single.sidewalkPattern = d.sidewalkPattern;
             single.wallPattern = d.wallPattern;
             single.paidAmount = perCellPaid;
@@ -237,6 +238,7 @@ public final class PlotManager {
                 if (parts.length > 12) d.ambience = parts[12];
                 if (parts.length > 13) d.sidewalkPattern = parts[13];
                 if (parts.length > 14) d.wallPattern = parts[14];
+                if (parts.length > 15) d.biomeId = parts[15];
                 for (PlotPos c : d.cells) PLOTS.put(c, d);
             } catch (Exception e) {
                 System.err.println("[FabricPlots] Skipped bad plot line: " + line + " (" + e + ")");
@@ -267,7 +269,8 @@ public final class PlotManager {
             String floor = d.floorBlockId == null ? "" : d.floorBlockId;
             lines.add(d.owner + ";" + d.ownerName + ";" + tj + ";" + cj + ";" + d.name + ";" + dj + ";" + home
                     + ";" + floor + ";" + d.pvp + ";" + lj + ";" + d.paidAmount
-                    + ";" + d.greeting + ";" + d.ambience + ";" + d.sidewalkPattern + ";" + d.wallPattern);
+                    + ";" + d.greeting + ";" + d.ambience + ";" + d.sidewalkPattern + ";" + d.wallPattern
+                    + ";" + d.biomeId);
         }
         try {
             Files.write(saveFile, lines);
