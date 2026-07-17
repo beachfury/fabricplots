@@ -65,6 +65,14 @@ public final class PlotProtection {
                     || held.getItem() instanceof net.minecraft.world.item.BucketItem) {
                 BlockPos target = world.getBlockState(pos).canBeReplaced() ? pos : pos.relative(hit.getDirection());
                 if (!target.equals(pos) && !allowed(player, target)) return InteractionResult.FAIL;
+                // Two-block placements (beds) also occupy a HEAD block in the player's facing —
+                // that second position must be buildable too, or a bed at the plot edge lays its
+                // head over the curb.
+                if (held.getItem() instanceof net.minecraft.world.item.BlockItem blockItem
+                        && blockItem.getBlock() instanceof net.minecraft.world.level.block.BedBlock) {
+                    BlockPos head = target.relative(player.getDirection());
+                    if (!allowed(player, head)) return InteractionResult.FAIL;
+                }
             }
             return InteractionResult.PASS;
         });

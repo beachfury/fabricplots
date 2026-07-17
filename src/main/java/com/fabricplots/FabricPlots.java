@@ -168,7 +168,9 @@ public final class FabricPlots implements ModInitializer {
             }
         }
 
-        // Only named mobs may live in the plots world; clear stale unnamed ones.
+        // Mob lifecycle is per-plot now: what lives on a plot is the OWNER's choice (the spawn
+        // toggles), named or not. The stale-mob cull only applies to STREETS and unclaimed ground —
+        // escapees and plaza strays that nobody owns.
         if (++mobScanTick >= PlotsConfig.mobScanIntervalTicks) {
             mobScanTick = 0;
             ServerLevel plots = server.getLevel(PLOTS_DIM);
@@ -176,7 +178,8 @@ public final class FabricPlots implements ModInitializer {
                 List<Entity> stale = new ArrayList<>();
                 for (Entity e : plots.getAllEntities()) {
                     if (e instanceof Mob mob && !mob.hasCustomName()
-                            && mob.tickCount > PlotsConfig.unnamedMobGraceTicks) {
+                            && mob.tickCount > PlotsConfig.unnamedMobGraceTicks
+                            && PlotManager.owningPlot(mob.getBlockX(), mob.getBlockZ()) == null) {
                         stale.add(mob);
                     }
                 }
