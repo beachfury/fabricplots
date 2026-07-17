@@ -121,10 +121,20 @@ public final class PlotBiomes {
         return "minecraft:grass_block";
     }
 
+    /**
+     * Biome data lives in 4×4×4 cells, so every fill bleeds up to 3 blocks past its rectangle —
+     * onto the curb and the first road columns. Scrub passes pad by one full quart so a CHANGE of
+     * biome always erases the previous biome's bleed before painting the new one.
+     */
+    private static final int SCRUB_PAD = 4;
+
     /** Paint the plot's chosen biome (blank = the default plot biome) across everything it owns. */
     public static int applyBiome(ServerLevel level, PlotData d) {
         String id = (d.biomeId == null || d.biomeId.isBlank()) ? DEFAULT_ID : d.biomeId;
-        int n = fillRects(level, d, id);
+        // Two passes: scrub the plot + margin back to default (kills the old biome's boundary
+        // quarts around the curb/street), then paint the new biome over the exact plot area.
+        int n = fillRects(level, d, DEFAULT_ID, SCRUB_PAD);
+        if (!id.equals(DEFAULT_ID)) n = fillRects(level, d, id, 0);
         // The old biome's mobs (and whatever they dropped) don't belong to the new look.
         PlotMobGuard.purgeMobsAndDrops(level, d);
         return n;
@@ -132,10 +142,10 @@ public final class PlotBiomes {
 
     /** Back to the plot world's native biome (call BEFORE unclaiming — needs the cells registered). */
     public static int resetBiome(ServerLevel level, PlotData d) {
-        return fillRects(level, d, DEFAULT_ID);
+        return fillRects(level, d, DEFAULT_ID, SCRUB_PAD); // padded: also erases the boundary bleed
     }
 
-    private static int fillRects(ServerLevel level, PlotData d, String biomeId) {
+    private static int fillRects(ServerLevel level, PlotData d, String biomeId, int pad) {
         Holder<Biome> biome;
         try {
             biome = level.registryAccess().lookupOrThrow(Registries.BIOME)
@@ -147,7 +157,8 @@ public final class PlotBiomes {
         int minY = level.getMinY();
         int maxY = level.getMaxY();
         int tiles = 0;
-        for (int[] r : ownedRects(d)) {                       // r = xMin, xMax, zMin, zMax
+        for (int[] raw : ownedRects(d)) {                     // raw = xMin, xMax, zMin, zMax
+            int[] r = { raw[0] - pad, raw[1] + pad, raw[2] - pad, raw[3] + pad };
             for (int x0 = r[0]; x0 <= r[1]; x0 += TILE) {
                 for (int z0 = r[2]; z0 <= r[3]; z0 += TILE) {
                     int x1 = Math.min(r[1], x0 + TILE - 1);
