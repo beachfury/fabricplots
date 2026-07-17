@@ -226,6 +226,8 @@ public final class PlotWorldPainter {
         // Designer styling survives a clear, like the floor block does.
         if (!data.sidewalkPattern.isBlank()) PlotStyle.applySidewalk(level, data);
         if (!data.wallPattern.isBlank()) PlotStyle.applyWall(level, data);
+        // A clear means a CLEAR: no leftover mobs, dropped items, armor stands, boats…
+        PlotMobGuard.purgeAllEntities(level, data);
         return columns;
     }
 

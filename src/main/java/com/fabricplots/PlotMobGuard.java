@@ -33,11 +33,57 @@ public final class PlotMobGuard {
             if (world.dimension() != FabricPlots.PLOTS_DIM) return;
             if (!(entity instanceof Mob mob) || mob.hasCustomName()) return;
             BlockPos pos = mob.blockPosition();
-            if (PlotManager.owningPlot(pos.getX(), pos.getZ()) != null) {
-                HOME.put(mob.getUUID(), pos.immutable());
-                mob.setHomeTo(pos, HOME_RADIUS);
+            PlotData d = PlotManager.owningPlot(pos.getX(), pos.getZ());
+            if (d == null) return;
+            // The owner's spawn toggles: cull disallowed categories the moment they appear
+            // (covers natural spawns AND mobs re-loaded from disk after the toggle changed).
+            if (!allowed(d, mob)) {
+                world.getServer().execute(mob::discard); // next tick — never mid-load
+                return;
             }
+            HOME.put(mob.getUUID(), pos.immutable());
+            mob.setHomeTo(pos, HOME_RADIUS);
         });
+    }
+
+    /** Does this plot's owner allow this (unnamed) mob's category? */
+    private static boolean allowed(PlotData d, Mob mob) {
+        boolean hostile = mob.getType().getCategory() == net.minecraft.world.entity.MobCategory.MONSTER;
+        return hostile ? d.spawnHostile : d.spawnPassive;
+    }
+
+    /** Remove a plot's unnamed mobs and item drops (used when its biome changes). Returns count. */
+    public static int purgeMobsAndDrops(ServerLevel plots, PlotData d) {
+        return purge(plots, d, false, null);
+    }
+
+    /** Remove EVERY non-player entity on a plot (used by /plot clear). Returns count. */
+    public static int purgeAllEntities(ServerLevel plots, PlotData d) {
+        return purge(plots, d, true, null);
+    }
+
+    /** Remove a plot's unnamed mobs of one category (used when a spawn toggle is switched off). */
+    public static int purgeCategory(ServerLevel plots, PlotData d, boolean hostile) {
+        return purge(plots, d, false, hostile);
+    }
+
+    private static int purge(ServerLevel plots, PlotData d, boolean everything, Boolean hostileOnly) {
+        if (plots == null || d == null) return 0;
+        java.util.List<Entity> doomed = new java.util.ArrayList<>();
+        for (Entity e : plots.getAllEntities()) {
+            if (e instanceof net.minecraft.server.level.ServerPlayer) continue;
+            if (PlotManager.owningPlot(e.getBlockX(), e.getBlockZ()) != d) continue;
+            if (everything) { doomed.add(e); continue; }
+            if (e instanceof net.minecraft.world.entity.item.ItemEntity && hostileOnly == null) { doomed.add(e); continue; }
+            if (!(e instanceof Mob mob) || mob.hasCustomName()) continue;
+            if (hostileOnly != null) {
+                boolean isHostile = mob.getType().getCategory() == net.minecraft.world.entity.MobCategory.MONSTER;
+                if (isHostile != hostileOnly) continue;
+            }
+            doomed.add(e);
+        }
+        for (Entity e : doomed) { HOME.remove(e.getUUID()); e.discard(); }
+        return doomed.size();
     }
 
     /** Called every couple of seconds: return escapees to their plot, forget unloaded mobs. */

@@ -152,6 +152,10 @@ public final class PlotMenus {
         g.setSlot(25, btn(biomeIcon(d), "Biome",
                 "Currently: " + PlotBiomes.labelOf(d.biomeId) + " — recolor grass, leaves and sky on your plot.",
                 (i, t, a, gg) -> biomePicker(sp, anchor, 0)));
+        g.setSlot(26, btn(Items.ZOMBIE_HEAD, "Mob spawning",
+                "Hostile: " + (d.spawnHostile ? "ON" : "OFF") + " · Passive: " + (d.spawnPassive ? "ON" : "OFF")
+                        + " — what your plot's biome may spawn.",
+                (i, t, a, gg) -> mobSpawnPicker(sp, anchor)));
         g.setSlot(31, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> myPlots(sp, 0)));
         g.open();
     }
@@ -166,6 +170,43 @@ public final class PlotMenus {
             Item it = BuiltInRegistries.ITEM.getValue(Identifier.parse(id));
             return (it == null || it == Items.AIR) ? Items.GRASS_BLOCK : it;
         } catch (Exception e) { return Items.GRASS_BLOCK; }
+    }
+
+    // ---- per-plot mob spawn toggles --------------------------------------
+
+    public static void mobSpawnPicker(ServerPlayer sp, PlotPos anchor) {
+        PlotData d = PlotManager.get(anchor);
+        if (d == null || (!d.owner.equals(sp.getUUID()) && !PlotProtection.isAdmin(sp))) { sp.closeContainer(); return; }
+        SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
+        g.setTitle(Component.literal("Mob spawning on this plot"));
+        g.setSlot(11, btn(d.spawnHostile ? Items.ZOMBIE_HEAD : Items.BARRIER,
+                "Hostile mobs: " + (d.spawnHostile ? "ON" : "OFF"),
+                d.spawnHostile ? "Your biome's monsters may spawn. Click to clear them and turn it off."
+                               : "No monsters spawn here. Click to allow them.",
+                (i, t, a, gg) -> {
+                    d.spawnHostile = !d.spawnHostile;
+                    PlotManager.save();
+                    if (!d.spawnHostile) {
+                        int n = PlotMobGuard.purgeCategory(plots(sp), d, true);
+                        sp.sendSystemMessage(Component.literal("[Plots] Hostile spawns off — removed " + n + " mob" + (n == 1 ? "" : "s") + "."));
+                    }
+                    mobSpawnPicker(sp, anchor);
+                }));
+        g.setSlot(15, btn(d.spawnPassive ? Items.EGG : Items.BARRIER,
+                "Passive mobs: " + (d.spawnPassive ? "ON" : "OFF"),
+                d.spawnPassive ? "Your biome's animals may spawn. Click to clear them and turn it off."
+                               : "No animals spawn here. Click to allow them.",
+                (i, t, a, gg) -> {
+                    d.spawnPassive = !d.spawnPassive;
+                    PlotManager.save();
+                    if (!d.spawnPassive) {
+                        int n = PlotMobGuard.purgeCategory(plots(sp), d, false);
+                        sp.sendSystemMessage(Component.literal("[Plots] Passive spawns off — removed " + n + " mob" + (n == 1 ? "" : "s") + "."));
+                    }
+                    mobSpawnPicker(sp, anchor);
+                }));
+        g.setSlot(22, btn(Items.ARROW, "Back", "Named mobs (pets) are never touched.", (i, t, a, gg) -> settings(sp, anchor)));
+        g.open();
     }
 
     // ---- biome picker ----------------------------------------------------

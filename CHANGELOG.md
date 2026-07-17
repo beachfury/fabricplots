@@ -39,6 +39,12 @@ The customization update.
   biome's mobs — part of the flavor — but they now stay put: their wander AI is tethered to where they
   spawned, and a periodic sweep teleports back anything that slips onto a road or a neighbour's plot.
   Named mobs are exempt, and the existing unnamed-mob cleanup still prevents build-up.
+- **Per-plot mob spawn toggles.** Settings → Mob spawning: allow or block the biome's **hostile** and
+  **passive** spawns independently. Turning one off immediately clears that category from the plot, and
+  the block also despawns saved mobs as their chunks reload. Named mobs (pets) are never touched.
+- **Cleanups that actually clean.** Changing a plot's biome removes the old biome's mobs and their dropped
+  items; `/plot clear` now removes **every** non-player entity on the plot (mobs, drops, armor stands,
+  boats, item frames…) along with the blocks.
 - **Placeholder API integration** (optional, auto-detected): `%fabricplots:owned%`, `%fabricplots:total%`,
   `%fabricplots:my_likes%`, and — for the plot you're standing on — `%fabricplots:plot_name%`,
   `%fabricplots:plot_owner%`, `%fabricplots:plot_likes%`, `%fabricplots:plot_biome%`. For tab lists, chat

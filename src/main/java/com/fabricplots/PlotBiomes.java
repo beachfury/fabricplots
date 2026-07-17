@@ -43,7 +43,9 @@ public final class PlotBiomes {
         try {
             for (Identifier key : level.registryAccess().lookupOrThrow(Registries.BIOME).keySet()) {
                 String id = key.toString();
-                if (!id.equals(DEFAULT_ID)) out.add(id);
+                if (id.equals(DEFAULT_ID)) continue;
+                if (id.startsWith("terrablender:")) continue; // internal deferred placeholders, not real biomes
+                out.add(id);
             }
         } catch (Exception e) {
             System.err.println("[FabricPlots] Failed to list biomes: " + e);
@@ -122,7 +124,10 @@ public final class PlotBiomes {
     /** Paint the plot's chosen biome (blank = the default plot biome) across everything it owns. */
     public static int applyBiome(ServerLevel level, PlotData d) {
         String id = (d.biomeId == null || d.biomeId.isBlank()) ? DEFAULT_ID : d.biomeId;
-        return fillRects(level, d, id);
+        int n = fillRects(level, d, id);
+        // The old biome's mobs (and whatever they dropped) don't belong to the new look.
+        PlotMobGuard.purgeMobsAndDrops(level, d);
+        return n;
     }
 
     /** Back to the plot world's native biome (call BEFORE unclaiming — needs the cells registered). */
