@@ -35,7 +35,7 @@ dependencies {
 
     // Optional Placeholder API integration (same maven). compileOnly: %fabricplots:*% placeholders
     // register only when the placeholder-api mod is present at runtime.
-    compileOnly "eu.pb4:placeholder-api:3.0.0+26.1"
+    compileOnly "eu.pb4:placeholder-api:3.1.0-beta.1+26.2"
 }
 
 java {
