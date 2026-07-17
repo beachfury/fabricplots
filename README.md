@@ -24,7 +24,12 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   plot see it (client-side illusion — the server's real time/weather never changes). Works for Bedrock too.
 - **Per-plot biome** — pick from 26 biomes and your plot is repainted (grass, foliage and sky tint) via
   vanilla's `/fillbiome` machinery. Persists in the world, covers merged shapes, and resets automatically
-  when a plot is deleted or expires.
+  when a plot is deleted or expires. Mobs the biome spawns are **confined to the plot** (tethered AI + a
+  teleport-back sweep), so a Nether Wastes plot keeps its piglins to itself.
+- **Placeholders** — with [Placeholder API](https://placeholders.pb4.eu/) installed, `%fabricplots:owned%`,
+  `%fabricplots:total%`, `%fabricplots:my_likes%`, `%fabricplots:plot_name%`, `%fabricplots:plot_owner%`,
+  `%fabricplots:plot_likes%`, `%fabricplots:plot_biome%` work in tab lists, chat formats and holograms
+  (soft dependency — nothing required).
 - **Custom greeting** — an owner-set welcome line shown to visitors stepping onto the plot.
 - **Transfer & kick** — hand a plot to another player (`/plot transfer` or the menu), and send unwanted
   visitors back to spawn (`/plot kick` or the menu).

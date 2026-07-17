@@ -32,6 +32,14 @@ The customization update.
   to the spawn plaza.
 - **Browse Plots.** A hub gallery of every claimed plot (alphabetical, with owner and like count) — visit or
   like any plot from it.
+- **Plot-bound mobs.** A spawn-heavy plot biome (Nether Wastes, Mushroom Fields…) naturally spawns that
+  biome's mobs — part of the flavor — but they now stay put: their wander AI is tethered to where they
+  spawned, and a periodic sweep teleports back anything that slips onto a road or a neighbour's plot.
+  Named mobs are exempt, and the existing unnamed-mob cleanup still prevents build-up.
+- **Placeholder API integration** (optional, auto-detected): `%fabricplots:owned%`, `%fabricplots:total%`,
+  `%fabricplots:my_likes%`, and — for the plot you're standing on — `%fabricplots:plot_name%`,
+  `%fabricplots:plot_owner%`, `%fabricplots:plot_likes%`, `%fabricplots:plot_biome%`. For tab lists, chat
+  formats, holograms, etc.
 - `/plot name` input is now sanitized (a stray `;` could corrupt the save file).
 
 ### Changed
