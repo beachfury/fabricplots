@@ -47,9 +47,13 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   Key** → that exact plot. Exit portals auto-build by claimed plots. (Uses particle swirls, not the nether block,
   so it never sends anyone to the nether.)
 - **Build tools — a "WorldEdit-lite" that's jailed to your plot.** `set`, `replace`, `walls`, `sphere`,
-  `hsphere`, `cyl`, `copy`, `cut`, `paste`, `stack`, `move`, `undo`, `redo` — every block written is
-  ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing risk, no WorldEdit
-  region setup.
+  `hsphere`, `cyl`, `disc`, `ring`, `line`, `copy`, `cut`, `paste`, `stack`, `move`, `undo`, `redo` — every
+  block written is ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing
+  risk, no WorldEdit region setup.
+- **Shapes screen** — a builder GUI inside `/plot edit`: circle, square, sphere, cylinder, pyramid, and a
+  3D diagonal **line tool**, each filled or hollow (ring / frame / shell / tube), with size, height,
+  thickness, and repeat×spacing dials. A self-cleaning **gold center marker** shows exactly where the shape
+  will land, and a **random-texture toggle** mixes every block in your hotbar for natural-looking builds.
 - **Clickable menus (sgui, crossplay)** — `/plot menu` (hub with **Claim a Plot**, My Plots, Build Editor, Portal
   Keys, **Browse Plots**, Top Plots), `/plot edit` (build GUI; material = the block in your hand), and per-plot
   settings: rename, floor-block picker, sidewalk & wall designers, sky & weather, greeting, PvP toggle, transfer,

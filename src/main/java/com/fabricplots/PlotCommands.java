@@ -121,6 +121,25 @@ public final class PlotCommands {
                                         .executes(ctx -> cylEdit(ctx, 1))
                                         .then(Commands.argument("height", IntegerArgumentType.integer(1, 256))
                                                 .executes(ctx -> cylEdit(ctx, IntegerArgumentType.getInteger(ctx, "height")))))))
+                .then(Commands.literal("disc")
+                        .then(Commands.argument("block", BlockStateArgument.block(bc))
+                                .then(Commands.argument("size", IntegerArgumentType.integer(1, 64))
+                                        .executes(ctx -> shapeEdit(ctx, PlotEdit.Shape.CIRCLE, false, 1))
+                                        .then(Commands.argument("height", IntegerArgumentType.integer(1, 64))
+                                                .executes(ctx -> shapeEdit(ctx, PlotEdit.Shape.CIRCLE, false,
+                                                        IntegerArgumentType.getInteger(ctx, "height")))))))
+                .then(Commands.literal("ring")
+                        .then(Commands.argument("block", BlockStateArgument.block(bc))
+                                .then(Commands.argument("size", IntegerArgumentType.integer(1, 64))
+                                        .executes(ctx -> shapeEdit(ctx, PlotEdit.Shape.CIRCLE, true, 1))
+                                        .then(Commands.argument("height", IntegerArgumentType.integer(1, 64))
+                                                .executes(ctx -> shapeEdit(ctx, PlotEdit.Shape.CIRCLE, true,
+                                                        IntegerArgumentType.getInteger(ctx, "height")))))))
+                .then(Commands.literal("line")
+                        .then(Commands.argument("block", BlockStateArgument.block(bc))
+                                .executes(ctx -> lineEdit(ctx, 1))
+                                .then(Commands.argument("thickness", IntegerArgumentType.integer(1, 8))
+                                        .executes(ctx -> lineEdit(ctx, IntegerArgumentType.getInteger(ctx, "thickness"))))))
                 .then(Commands.literal("admin").executes(PlotCommands::adminMode))
                 .then(Commands.literal("setspawn").executes(PlotCommands::setSpawn))
                 .then(Commands.literal("reload").executes(PlotCommands::reload))
@@ -369,6 +388,9 @@ public final class PlotCommands {
         line(src, "/plot sphere <block> <radius>", "build a sphere");
         line(src, "/plot hsphere <block> <radius>", "build a hollow sphere");
         line(src, "/plot cyl <block> <radius> [height]", "build a cylinder");
+        line(src, "/plot disc <block> <size> [height]", "build a flat disc where you stand");
+        line(src, "/plot ring <block> <size> [height]", "build a ring where you stand");
+        line(src, "/plot line <block> [thickness]", "draw a line corner 1 → corner 2");
         line(src, "/plot copy", "copy the selection");
         line(src, "/plot cut", "cut the selection");
         line(src, "/plot paste", "paste here");
@@ -463,6 +485,24 @@ public final class PlotCommands {
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
             int r = IntegerArgumentType.getInteger(ctx, "radius");
             return PlotEdit.cylinder(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(), r, height);
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
+    private static int shapeEdit(CommandContext<CommandSourceStack> ctx, PlotEdit.Shape shape, boolean hollow, int height) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
+            int size = IntegerArgumentType.getInteger(ctx, "size");
+            return PlotEdit.buildShape(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(),
+                    shape, hollow, size, height, 1, 1, 0);
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
+    private static int lineEdit(CommandContext<CommandSourceStack> ctx, int thickness) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
+            return PlotEdit.line(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(), thickness);
         } catch (Exception e) { return err(ctx, e); }
     }
 
