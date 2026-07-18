@@ -19,10 +19,11 @@ The shapes update.
   Shapes build centered on where you stand.
 - **Line tool.** Draws a straight line from corner 1 to corner 2 at **any angle — diagonals and slopes
   included**, in full 3D. Thickness turns it into a beam. Also available as `/plot line <block> [thickness]`.
-- **Random texture toggle.** Flip *Texture: Random from hotbar* (on the editor and Shapes screens) and
-  every edit — fill, replace, walls, shapes, lines — mixes **all the blocks in your hotbar** randomly
-  instead of using just the held block. Put a block in multiple slots to make it more common. Perfect
-  for natural-looking paths and walls. Per-player, resets on server restart.
+- **Random texture toggle.** Flip *Random texture* ON (lime/gray dye button on the editor and Shapes
+  screens) and every edit — fill, replace, walls, shapes, lines — **and every block you place by hand**
+  mixes **all the blocks in your hotbar** randomly instead of using just the held block: lay a path
+  without ever scrolling your hotbar. Put a block in multiple slots to make it more common. In survival
+  the cost comes out of the stack that actually got placed. Per-player, resets on server restart.
 - **Find center of a line.** With corners 1 and 2 set, a Shapes-screen button (or `/plot center`)
   marks the middle of the line with gold — one block for odd lengths, the middle two for even, same
   rule as shapes. The marker doubles as the shape center, so "mark a wall → find center → build a
