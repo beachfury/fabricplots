@@ -94,11 +94,7 @@ public final class PlotShapesGui {
                 .setCallback((i, t, a, g) -> withBlock(sp, bs ->
                         PlotEdit.buildShape(sp, level, bs, p.shape, p.hollow, p.size, p.height, p.thickness, p.repeat, p.spacing)))
                 .build());
-        gui.setSlot(33, new GuiElementBuilder(Items.PAINTING)
-                .setName(Component.literal("Texture: " + (PlotEdit.isRandomTexture(sp) ? "Random from hotbar" : "Held block only")))
-                .addLoreLine(Component.literal("Random mixes every BLOCK in your hotbar (1-9)"))
-                .addLoreLine(Component.literal("Duplicate slots make that block more common"))
-                .setCallback((i, t, a, g) -> { PlotEdit.toggleRandomTexture(sp); render(gui, sp); }).build());
+        gui.setSlot(33, PlotEditGui.textureToggle(sp, () -> render(gui, sp)));
         gui.setSlot(35, btn(Items.CLOCK, "Undo last edit", (i, t, a, g) -> PlotEdit.undo(sp, level)));
 
         // Row 5 — measuring helpers (corner 1 → corner 2).
