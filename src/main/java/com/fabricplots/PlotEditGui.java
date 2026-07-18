@@ -50,12 +50,17 @@ public final class PlotEditGui {
         gui.setSlot(7, btn(Items.CLOCK, "Undo last edit", (i, t, a, g) -> PlotEdit.undo(sp, level)));
         gui.setSlot(8, btn(Items.COMPASS, "Redo", (i, t, a, g) -> PlotEdit.redo(sp, level)));
 
-        // Row 2 — fill + shapes (held block = material).
+        // Row 2 — fill + the Shapes screen (held block = material).
         gui.setSlot(9, btn(Items.STONE, "Fill selection (held block)", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.set(sp, level, bs))));
         gui.setSlot(10, btn(Items.BRICKS, "Walls around selection", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.walls(sp, level, bs))));
-        gui.setSlot(12, btn(Items.SNOWBALL, "Sphere (r=" + amt + ")", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.sphere(sp, level, bs, amount(id), false))));
-        gui.setSlot(13, btn(Blocks.STAINED_GLASS.white().asItem(), "Hollow sphere (r=" + amt + ")", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.sphere(sp, level, bs, amount(id), true))));
-        gui.setSlot(14, btn(Items.BAMBOO, "Cylinder (r=h=" + amt + ")", (i, t, a, g) -> withBlock(sp, bs -> PlotEdit.cylinder(sp, level, bs, amount(id), amount(id)))));
+        gui.setSlot(12, new GuiElementBuilder(Items.SNOWBALL)
+                .setName(Component.literal("Shapes…"))
+                .addLoreLine(Component.literal("Circle, square, sphere, cylinder, pyramid, line"))
+                .setCallback((i, t, a, g) -> PlotShapesGui.open(sp)).build());
+        gui.setSlot(14, new GuiElementBuilder(Items.PAINTING)
+                .setName(Component.literal("Texture: " + (PlotEdit.isRandomTexture(sp) ? "Random from hotbar" : "Held block only")))
+                .addLoreLine(Component.literal("Random mixes every BLOCK in your hotbar (1-9)"))
+                .setCallback((i, t, a, g) -> { PlotEdit.toggleRandomTexture(sp); render(gui, sp); }).build());
 
         // Row 3 — amount knob + transforms.
         gui.setSlot(18, btn(Items.REDSTONE, "Amount −1", (i, t, a, g) -> { AMOUNT.put(id, Math.max(1, amount(id) - 1)); render(gui, sp); }));

@@ -3,6 +3,36 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.3.0] — 2026-07-18
+
+The shapes update.
+
+### Added
+- **Shapes screen.** `/plot edit` → **Shapes…** opens a dedicated builder: pick **circle, square,
+  sphere, cylinder, pyramid, or line**, choose **Filled or Hollow** (hollow = ring, frame, shell, tube,
+  or stepped frame), and dial in **Size**, **Height** (extrudes flat shapes into towers), **Thickness**
+  (hollow walls and line beams), and **Repeat × Spacing** (stack vertical copies with an air gap —
+  instant floors). Parameter buttons: left-click +1, right-click −1, shift for ±5.
+- **Gold center marker.** *Set center* drops a gold block at your feet — a single block for odd sizes,
+  a 2×2 for even sizes — so you can see exactly where the shape will land before you build. The marker
+  is self-cleaning: whatever it covered is restored when you build, move it, or clear it. No marker?
+  Shapes build centered on where you stand.
+- **Line tool.** Draws a straight line from corner 1 to corner 2 at **any angle — diagonals and slopes
+  included**, in full 3D. Thickness turns it into a beam. Also available as `/plot line <block> [thickness]`.
+- **Random texture toggle.** Flip *Texture: Random from hotbar* (on the editor and Shapes screens) and
+  every edit — fill, replace, walls, shapes, lines — mixes **all the blocks in your hotbar** randomly
+  instead of using just the held block. Put a block in multiple slots to make it more common. Perfect
+  for natural-looking paths and walls. Per-player, resets on server restart.
+- **New commands:** `/plot disc <block> <size> [height]`, `/plot ring <block> <size> [height]`,
+  `/plot line <block> [thickness]`.
+
+### Changed
+- The sphere / hollow-sphere / cylinder buttons on the main editor page moved into the new Shapes
+  screen (the `/plot sphere`, `/plot hsphere`, `/plot cyl` commands still work as before).
+
+Everything the Shapes screen builds goes through the same editor pipeline as before: plot-jailed to
+land you own, counted against the edit budget, and fully undoable with `/plot undo`.
+
 ## [0.2.0] — 2026-07-17
 
 The customization update.
