@@ -380,22 +380,56 @@ public final class PlotEdit {
      * covered blocks are restored when the marker moves, is cleared, or a shape is built.
      */
     public static void setShapeCenter(ServerPlayer sp, ServerLevel level, boolean evenSize) {
+        BlockPos feet = sp.blockPosition().immutable();
+        List<BlockPos> positions = new ArrayList<>();
+        int span = evenSize ? 2 : 1;
+        for (int dx = 0; dx < span; dx++) for (int dz = 0; dz < span; dz++)
+            positions.add(feet.offset(dx, 0, dz));
+        placeMarker(sp, level, positions, feet);
+        msg(sp, "Center marked at " + xyz(feet) + (evenSize ? " (2x2 — even size)" : "") + ". Build when ready.");
+    }
+
+    /** Drop the self-cleaning gold marker on the given blocks; base becomes the shape center. */
+    private static void placeMarker(ServerPlayer sp, ServerLevel level, List<BlockPos> positions, BlockPos base) {
         clearShapeMarker(sp, level);
         UUID id = sp.getUUID();
-        BlockPos feet = sp.blockPosition().immutable();
         List<Snapshot> covered = new ArrayList<>();
         boolean admin = PlotProtection.isBuildAdmin(sp);
-        int span = evenSize ? 2 : 1;
-        for (int dx = 0; dx < span; dx++) for (int dz = 0; dz < span; dz++) {
-            int x = feet.getX() + dx, z = feet.getZ() + dz;
-            if (!canEdit(sp, admin, x, feet.getY(), z)) continue;
-            BlockPos p = new BlockPos(x, feet.getY(), z);
+        for (BlockPos p : positions) {
+            if (!canEdit(sp, admin, p.getX(), p.getY(), p.getZ())) continue;
             covered.add(new Snapshot(p, level.getBlockState(p)));
             level.setBlock(p, Blocks.GOLD_BLOCK.defaultBlockState(), Block.UPDATE_CLIENTS);
         }
-        SHAPE_CENTER.put(id, feet);
+        SHAPE_CENTER.put(id, base);
         CENTER_MARKER.put(id, covered);
-        msg(sp, "Center marked at " + xyz(feet) + (evenSize ? " (2x2 — even size)" : "") + ". Build when ready.");
+    }
+
+    /**
+     * Find the middle of the corner 1 → corner 2 line and mark it with gold — one block when the
+     * line is an odd number of blocks long, the middle two when it's even (same rule as shapes).
+     * The marker doubles as the shape center, so you can find-center then build a circle on it.
+     */
+    public static int findLineCenter(ServerPlayer sp, ServerLevel level) {
+        UUID id = sp.getUUID();
+        BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
+        if (p1 == null || p2 == null) { msg(sp, "Set corner 1 and corner 2 first — the center is found along that line."); return 0; }
+        int steps = Math.max(Math.max(Math.abs(p2.getX() - p1.getX()), Math.abs(p2.getY() - p1.getY())),
+                Math.abs(p2.getZ() - p1.getZ()));
+        List<BlockPos> cells = new ArrayList<>();
+        for (int i = 0; i <= steps; i++) {
+            double f = steps == 0 ? 0 : (double) i / steps;
+            cells.add(new BlockPos((int) Math.round(p1.getX() + (p2.getX() - p1.getX()) * f),
+                    (int) Math.round(p1.getY() + (p2.getY() - p1.getY()) * f),
+                    (int) Math.round(p1.getZ() + (p2.getZ() - p1.getZ()) * f)));
+        }
+        int n = cells.size();
+        List<BlockPos> mid = (n % 2 == 1)
+                ? List.of(cells.get(n / 2))
+                : List.of(cells.get(n / 2 - 1), cells.get(n / 2));
+        placeMarker(sp, level, mid, mid.get(0));
+        msg(sp, "Line is " + n + " blocks long — center marked at " + xyz(mid.get(0))
+                + (n % 2 == 0 ? " (2 blocks — even length)" : "") + ".");
+        return 1;
     }
 
     /** Restore whatever the gold marker covered (no-op if none). */
@@ -481,6 +515,97 @@ public final class PlotEdit {
         }
         String label = (hollow ? "Hollow " : "") + shape.name().toLowerCase() + " —";
         return commit(sp, level, writes, label.substring(0, 1).toUpperCase() + label.substring(1));
+    }
+
+    // ---- measuring tape --------------------------------------------------
+
+    // One tape per player: what each placed block covered, restored on clear/re-lay.
+    private static final Map<UUID, List<Snapshot>> TAPE = new HashMap<>();
+
+    /** Registry-ID lookup — keeps colored blocks identical across the 26.1.2 and 26.2 branches. */
+    private static Block blockById(String id) {
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                .getValue(net.minecraft.resources.Identifier.parse(id));
+    }
+
+    /**
+     * Lay a caution-stripe measuring tape from corner 1 to corner 2 — straight runs only (one
+     * axis). Yellow/black alternates every block, counting from 1 at corner 1; numbered signs go
+     * every 2, 5, or 10 blocks depending on length (start and end are always numbered). Horizontal
+     * runs get signs standing on top; vertical runs get wall signs facing you. Temporary: laying a
+     * new tape or clearing restores exactly what was there.
+     */
+    public static int tape(ServerPlayer sp, ServerLevel level) {
+        UUID id = sp.getUUID();
+        BlockPos p1 = POS1.get(id), p2 = POS2.get(id);
+        if (p1 == null || p2 == null) { msg(sp, "Set corner 1 and corner 2 first — the tape runs between them."); return 0; }
+        int dx = p2.getX() - p1.getX(), dy = p2.getY() - p1.getY(), dz = p2.getZ() - p1.getZ();
+        int nonZero = (dx != 0 ? 1 : 0) + (dy != 0 ? 1 : 0) + (dz != 0 ? 1 : 0);
+        if (nonZero > 1) { msg(sp, "The tape runs straight only — line corners 1 and 2 up on a single axis."); return 0; }
+        clearTape(sp, level);
+
+        int n = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz))) + 1;
+        int interval = n <= 20 ? 2 : n <= 50 ? 5 : 10;
+        int sx = Integer.signum(dx), sy = Integer.signum(dy), sz = Integer.signum(dz);
+        boolean vertical = dy != 0;
+        boolean admin = PlotProtection.isBuildAdmin(sp);
+        Block yellow = blockById("minecraft:yellow_concrete"), black = blockById("minecraft:black_concrete");
+        Block standing = blockById("minecraft:oak_sign"), wall = blockById("minecraft:oak_wall_sign");
+        // Signs face back at wherever the player is standing when the tape is laid.
+        Direction toPlayer = sp.getDirection().getOpposite();
+
+        List<Snapshot> snaps = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            BlockPos pos = p1.offset(sx * i, sy * i, sz * i);
+            if (!canEdit(sp, admin, pos.getX(), pos.getY(), pos.getZ())) continue;
+            snaps.add(new Snapshot(pos, level.getBlockState(pos)));
+            level.setBlock(pos, (i % 2 == 0 ? yellow : black).defaultBlockState(), Block.UPDATE_CLIENTS);
+
+            int number = i + 1;
+            if (number != 1 && number != n && number % interval != 0) continue;
+            if (!vertical) {
+                BlockPos signPos = pos.above();
+                if (!canEdit(sp, admin, signPos.getX(), signPos.getY(), signPos.getZ())) continue;
+                snaps.add(new Snapshot(signPos, level.getBlockState(signPos)));
+                int rot = (int) (toPlayer.toYRot() / 22.5f) & 15;
+                level.setBlock(signPos, standing.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.StandingSignBlock.ROTATION, rot), Block.UPDATE_CLIENTS);
+                labelSign(level, signPos, number);
+            } else {
+                BlockPos signPos = pos.relative(toPlayer);
+                if (!canEdit(sp, admin, signPos.getX(), signPos.getY(), signPos.getZ())) continue;
+                snaps.add(new Snapshot(signPos, level.getBlockState(signPos)));
+                level.setBlock(signPos, wall.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.WallSignBlock.FACING, toPlayer), Block.UPDATE_CLIENTS);
+                labelSign(level, signPos, number);
+            }
+        }
+        TAPE.put(id, snaps);
+        msg(sp, "Tape laid — " + n + " blocks, numbered every " + interval + ". Clear it from the Shapes screen or /plot tape clear.");
+        return 1;
+    }
+
+    private static void labelSign(ServerLevel level, BlockPos pos, int number) {
+        if (level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.SignBlockEntity sbe) {
+            Component text = Component.literal(String.valueOf(number));
+            sbe.setText(sbe.getText(true).setMessage(1, text), true);
+            sbe.setText(sbe.getText(false).setMessage(1, text), false);
+            sbe.setWaxed(true); // nobody should be able to edit the numbers
+            sbe.setChanged();
+            level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    /** Remove the player's tape, restoring what each stripe/sign covered (skips blocks changed since). */
+    public static void clearTape(ServerPlayer sp, ServerLevel level) {
+        List<Snapshot> snaps = TAPE.remove(sp.getUUID());
+        if (snaps == null) return;
+        Block yellow = blockById("minecraft:yellow_concrete"), black = blockById("minecraft:black_concrete");
+        for (Snapshot s : snaps) {
+            BlockState cur = level.getBlockState(s.pos());
+            if (cur.is(yellow) || cur.is(black) || cur.getBlock() instanceof net.minecraft.world.level.block.SignBlock)
+                level.setBlock(s.pos(), s.old(), Block.UPDATE_CLIENTS);
+        }
     }
 
     /**

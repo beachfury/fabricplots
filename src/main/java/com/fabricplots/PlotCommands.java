@@ -140,6 +140,10 @@ public final class PlotCommands {
                                 .executes(ctx -> lineEdit(ctx, 1))
                                 .then(Commands.argument("thickness", IntegerArgumentType.integer(1, 8))
                                         .executes(ctx -> lineEdit(ctx, IntegerArgumentType.getInteger(ctx, "thickness"))))))
+                .then(Commands.literal("center").executes(PlotCommands::centerEdit))
+                .then(Commands.literal("tape")
+                        .executes(PlotCommands::tapeEdit)
+                        .then(Commands.literal("clear").executes(PlotCommands::tapeClear)))
                 .then(Commands.literal("admin").executes(PlotCommands::adminMode))
                 .then(Commands.literal("setspawn").executes(PlotCommands::setSpawn))
                 .then(Commands.literal("reload").executes(PlotCommands::reload))
@@ -391,6 +395,9 @@ public final class PlotCommands {
         line(src, "/plot disc <block> <size> [height]", "build a flat disc where you stand");
         line(src, "/plot ring <block> <size> [height]", "build a ring where you stand");
         line(src, "/plot line <block> [thickness]", "draw a line corner 1 → corner 2");
+        line(src, "/plot center", "mark the middle of corner 1 → corner 2 with gold");
+        line(src, "/plot tape", "lay a numbered measuring tape corner 1 → corner 2");
+        line(src, "/plot tape clear", "remove your measuring tape");
         line(src, "/plot copy", "copy the selection");
         line(src, "/plot cut", "cut the selection");
         line(src, "/plot paste", "paste here");
@@ -503,6 +510,32 @@ public final class PlotCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
             return PlotEdit.line(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(), thickness);
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
+    private static int centerEdit(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
+            return PlotEdit.findLineCenter(p, plotsLevel(ctx));
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
+    private static int tapeEdit(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
+            return PlotEdit.tape(p, plotsLevel(ctx));
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
+    private static int tapeClear(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
+            PlotEdit.clearTape(p, plotsLevel(ctx));
+            msg(ctx, "Measuring tape cleared.");
+            return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
 

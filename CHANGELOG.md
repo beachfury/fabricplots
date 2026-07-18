@@ -23,8 +23,17 @@ The shapes update.
   every edit — fill, replace, walls, shapes, lines — mixes **all the blocks in your hotbar** randomly
   instead of using just the held block. Put a block in multiple slots to make it more common. Perfect
   for natural-looking paths and walls. Per-player, resets on server restart.
+- **Find center of a line.** With corners 1 and 2 set, a Shapes-screen button (or `/plot center`)
+  marks the middle of the line with gold — one block for odd lengths, the middle two for even, same
+  rule as shapes. The marker doubles as the shape center, so "mark a wall → find center → build a
+  circle" gives you a perfectly centered window.
+- **Measuring tape.** Corner 1 → corner 2 becomes a yellow/black caution-stripe ruler (straight
+  runs only), counting from 1, with numbered signs every 2, 5, or 10 blocks depending on length —
+  start and end are always numbered. Horizontal runs get signs standing on top; vertical runs get
+  wall signs facing you. Temporary and self-cleaning: laying a new tape or clearing it (button or
+  `/plot tape clear`) puts back exactly what it covered.
 - **New commands:** `/plot disc <block> <size> [height]`, `/plot ring <block> <size> [height]`,
-  `/plot line <block> [thickness]`.
+  `/plot line <block> [thickness]`, `/plot center`, `/plot tape`, `/plot tape clear`.
 
 ### Changed
 - The sphere / hollow-sphere / cylinder buttons on the main editor page moved into the new Shapes
