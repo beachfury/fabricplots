@@ -588,8 +588,11 @@ public final class PlotEdit {
     private static void labelSign(ServerLevel level, BlockPos pos, int number) {
         if (level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.SignBlockEntity sbe) {
             Component text = Component.literal(String.valueOf(number));
-            sbe.setText(sbe.getText(true).setMessage(1, text), true);
-            sbe.setText(sbe.getText(false).setMessage(1, text), false);
+            // Black dye + glow ink so the number reads clearly day or night.
+            sbe.setText(sbe.getText(true).setMessage(1, text)
+                    .setColor(net.minecraft.world.item.DyeColor.BLACK).setHasGlowingText(true), true);
+            sbe.setText(sbe.getText(false).setMessage(1, text)
+                    .setColor(net.minecraft.world.item.DyeColor.BLACK).setHasGlowingText(true), false);
             sbe.setWaxed(true); // nobody should be able to edit the numbers
             sbe.setChanged();
             level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), Block.UPDATE_CLIENTS);
