@@ -68,9 +68,9 @@ public final class PlotShapesGui {
 
         // Row 2 — parameters. Left-click +1, right-click −1, shift = ±5.
         param(gui, sp, 10, Items.PAPER, "Size (width)", p.size,
-                v -> p.size = clamp(v, 1, 64), () -> p.size, "Diameter / side length");
+                v -> p.size = clamp(v, 1, 256), () -> p.size, "Diameter / side length");
         param(gui, sp, 11, Items.LADDER, "Height", p.height,
-                v -> p.height = clamp(v, 1, 64), () -> p.height, "Layers up (circle/square/cylinder)");
+                v -> p.height = clamp(v, 1, 128), () -> p.height, "Layers up (circle/square/cylinder)");
         param(gui, sp, 12, Items.BRICKS, "Thickness", p.thickness,
                 v -> p.thickness = clamp(v, 1, 8), () -> p.thickness, "Hollow wall / line beam thickness");
         param(gui, sp, 14, Items.REPEATER, "Repeat", p.repeat,
@@ -140,9 +140,9 @@ public final class PlotShapesGui {
                 .setName(Component.literal(name + ": " + value))
                 .setCount(Math.max(1, Math.min(64, value)))
                 .addLoreLine(Component.literal(lore))
-                .addLoreLine(Component.literal("Left-click +1 · Right-click −1 · Shift = ±5"))
+                .addLoreLine(Component.literal("Left-click +1 · Right-click −1 · Shift = ±10"))
                 .setCallback((i, t, a, g) -> {
-                    int step = t.shift ? 5 : 1;
+                    int step = t.shift ? 10 : 1;
                     set.set(get.get() + (t.isRight ? -step : step));
                     render(gui, sp);
                 }).build());
