@@ -90,8 +90,8 @@ public final class PlotEditGui {
         return new GuiElementBuilder(byRegistryId(on ? "minecraft:lime_dye" : "minecraft:gray_dye"))
                 .setName(Component.literal("Random texture: " + (on ? "ON" : "OFF")))
                 .addLoreLine(Component.literal(on
-                        ? "Edits mix every BLOCK in your hotbar (1-9)"
-                        : "Edits use only the block in your hand"))
+                        ? "Edits AND hand-placing mix every BLOCK in your hotbar"
+                        : "Edits and hand-placing use only the held block"))
                 .addLoreLine(Component.literal("Duplicate hotbar slots make that block more common"))
                 .addLoreLine(Component.literal(on ? "Click to turn OFF" : "Click to turn ON"))
                 .setCallback((i, t, a, g) -> { PlotEdit.toggleRandomTexture(sp); rerender.run(); }).build();

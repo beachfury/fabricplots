@@ -124,6 +124,47 @@ public final class PlotEdit {
         return RANDOM_TEXTURE.contains(sp.getUUID());
     }
 
+    // Re-entrancy guard for the hand-placement randomizer (main server thread only).
+    private static boolean placingRandom = false;
+
+    /**
+     * Hand-placement half of the random-texture toggle (called from RandomTexturePlaceMixin):
+     * with the toggle ON in the plot world, placing a block by hand rolls the block from the
+     * hotbar instead — lay a path without scrolling. Returns null to let vanilla placement run.
+     * In survival the consumed item is moved to the block actually placed, so cheap blocks can't
+     * be converted into rare ones.
+     */
+    public static InteractionResult randomPlace(net.minecraft.world.item.BlockItem self,
+                                                net.minecraft.world.item.context.BlockPlaceContext ctx) {
+        if (placingRandom) return null;
+        if (!(ctx.getLevel() instanceof ServerLevel level)) return null; // server side decides
+        if (level.dimension() != FabricPlots.PLOTS_DIM) return null;
+        if (!(ctx.getPlayer() instanceof ServerPlayer sp)) return null;
+        if (!isRandomTexture(sp)) return null;
+        List<net.minecraft.world.item.BlockItem> pool = new ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            ItemStack s = sp.getInventory().getItem(i);
+            if (!s.isEmpty() && s.getItem() instanceof net.minecraft.world.item.BlockItem bi) pool.add(bi);
+        }
+        if (pool.isEmpty()) return null;
+        net.minecraft.world.item.BlockItem rolled = pool.get(RNG.nextInt(pool.size()));
+        if (rolled == self) return null; // rolled the held block — vanilla placement is already right
+
+        ItemStack held = ctx.getItemInHand();
+        int before = held.getCount();
+        InteractionResult result;
+        placingRandom = true;
+        try { result = rolled.place(ctx); } finally { placingRandom = false; }
+        if (result.consumesAction() && !sp.getAbilities().instabuild && held.getCount() < before) {
+            held.grow(1); // vanilla took it from the held stack — charge the rolled stack instead
+            for (int i = 0; i < 9; i++) {
+                ItemStack s = sp.getInventory().getItem(i);
+                if (s != held && !s.isEmpty() && s.getItem() == rolled) { s.shrink(1); break; }
+            }
+        }
+        return result;
+    }
+
     /**
      * The material source for an edit: the held block — or, with random texture ON, a fresh roll
      * from the hotbar's block items per block written. Duplicate hotbar slots weight the mix.
