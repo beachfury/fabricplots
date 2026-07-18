@@ -57,10 +57,7 @@ public final class PlotEditGui {
                 .setName(Component.literal("Shapes…"))
                 .addLoreLine(Component.literal("Circle, square, sphere, cylinder, pyramid, line"))
                 .setCallback((i, t, a, g) -> PlotShapesGui.open(sp)).build());
-        gui.setSlot(14, new GuiElementBuilder(Items.PAINTING)
-                .setName(Component.literal("Texture: " + (PlotEdit.isRandomTexture(sp) ? "Random from hotbar" : "Held block only")))
-                .addLoreLine(Component.literal("Random mixes every BLOCK in your hotbar (1-9)"))
-                .setCallback((i, t, a, g) -> { PlotEdit.toggleRandomTexture(sp); render(gui, sp); }).build());
+        gui.setSlot(14, textureToggle(sp, () -> render(gui, sp)));
 
         // Row 3 — amount knob + transforms.
         gui.setSlot(18, btn(Items.REDSTONE, "Amount −1", (i, t, a, g) -> { AMOUNT.put(id, Math.max(1, amount(id) - 1)); render(gui, sp); }));
@@ -83,5 +80,31 @@ public final class PlotEditGui {
 
     private static GuiElement btn(Item icon, String name, GuiElement.ClickCallback cb) {
         return new GuiElementBuilder(icon).setName(Component.literal(name)).setCallback(cb).build();
+    }
+
+    /**
+     * The random-texture toggle, shared by the editor and Shapes screens: lime dye + "ON" when
+     * active, gray dye + "OFF" when not, with the lore saying what a click does.
+     */
+    static GuiElement textureToggle(ServerPlayer sp, Runnable rerender) {
+        boolean on = PlotEdit.isRandomTexture(sp);
+        return new GuiElementBuilder(byRegistryId(on ? "minecraft:lime_dye" : "minecraft:gray_dye"))
+                .setName(Component.literal("Random texture: " + (on ? "ON" : "OFF")))
+                .addLoreLine(Component.literal(on
+                        ? "Edits mix every BLOCK in your hotbar (1-9)"
+                        : "Edits use only the block in your hand"))
+                .addLoreLine(Component.literal("Duplicate hotbar slots make that block more common"))
+                .addLoreLine(Component.literal(on ? "Click to turn OFF" : "Click to turn ON"))
+                .setCallback((i, t, a, g) -> { PlotEdit.toggleRandomTexture(sp); rerender.run(); }).build();
+    }
+
+    // Registry-ID lookup so colored items work on both the 26.1.2 and 26.2 branches
+    // (26.2 moved the colored-item constants into ColorCollection; registry ids didn't change).
+    private static Item byRegistryId(String id) {
+        try {
+            Item it = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getValue(net.minecraft.resources.Identifier.parse(id));
+            return (it == null || it == Items.AIR) ? Items.PAINTING : it;
+        } catch (Exception e) { return Items.PAINTING; }
     }
 }
