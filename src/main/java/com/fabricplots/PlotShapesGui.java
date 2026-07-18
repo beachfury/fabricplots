@@ -101,6 +101,23 @@ public final class PlotShapesGui {
                 .setCallback((i, t, a, g) -> { PlotEdit.toggleRandomTexture(sp); render(gui, sp); }).build());
         gui.setSlot(35, btn(Items.CLOCK, "Undo last edit", (i, t, a, g) -> PlotEdit.undo(sp, level)));
 
+        // Row 5 — measuring helpers (corner 1 → corner 2).
+        gui.setSlot(37, new GuiElementBuilder(Items.GOLD_INGOT)
+                .setName(Component.literal("Find center of line"))
+                .addLoreLine(Component.literal("Marks the middle of corner 1 → corner 2 with gold"))
+                .addLoreLine(Component.literal("Odd length = 1 block, even = the middle 2"))
+                .addLoreLine(Component.literal("Doubles as the shape center — build right on it"))
+                .setCallback((i, t, a, g) -> PlotEdit.findLineCenter(sp, level)).build());
+        gui.setSlot(39, new GuiElementBuilder(Items.OAK_SIGN)
+                .setName(Component.literal("Measuring tape"))
+                .addLoreLine(Component.literal("Yellow/black stripes corner 1 → corner 2 (straight runs)"))
+                .addLoreLine(Component.literal("Counts from 1; numbered signs every 2, 5, or 10"))
+                .setCallback((i, t, a, g) -> PlotEdit.tape(sp, level)).build());
+        gui.setSlot(41, new GuiElementBuilder(Items.BARRIER)
+                .setName(Component.literal("Clear measuring tape"))
+                .addLoreLine(Component.literal("Puts back exactly what the tape covered"))
+                .setCallback((i, t, a, g) -> PlotEdit.clearTape(sp, level)).build());
+
         // Row 6 — back + held-block indicator.
         gui.setSlot(45, btn(Items.ARROW, "Back to editor", (i, t, a, g) -> PlotEditGui.open(sp)));
         BlockState held = PlotEdit.heldBlock(sp);

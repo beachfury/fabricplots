@@ -54,6 +54,8 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   3D diagonal **line tool**, each filled or hollow (ring / frame / shell / tube), with size, height,
   thickness, and repeat×spacing dials. A self-cleaning **gold center marker** shows exactly where the shape
   will land, and a **random-texture toggle** mixes every block in your hotbar for natural-looking builds.
+  Measuring helpers included: **find the center** of any corner-to-corner line (`/plot center`) and a
+  temporary yellow/black **measuring tape** with numbered signs (`/plot tape`).
 - **Clickable menus (sgui, crossplay)** — `/plot menu` (hub with **Claim a Plot**, My Plots, Build Editor, Portal
   Keys, **Browse Plots**, Top Plots), `/plot edit` (build GUI; material = the block in your hand), and per-plot
   settings: rename, floor-block picker, sidewalk & wall designers, sky & weather, greeting, PvP toggle, transfer,
