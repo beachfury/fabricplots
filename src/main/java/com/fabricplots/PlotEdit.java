@@ -110,6 +110,16 @@ public final class PlotEdit {
     public static void setPos1(ServerPlayer sp) { POS1.put(sp.getUUID(), sp.blockPosition().immutable()); msg(sp, "Corner 1 set at " + xyz(sp.blockPosition()) + "."); }
     public static void setPos2(ServerPlayer sp) { POS2.put(sp.getUUID(), sp.blockPosition().immutable()); msg(sp, "Corner 2 set at " + xyz(sp.blockPosition()) + "."); }
 
+    /** Current selection as "W x H x L — n blocks", or null if either corner is unset. */
+    public static String selectionInfo(ServerPlayer sp) {
+        BlockPos p1 = POS1.get(sp.getUUID()), p2 = POS2.get(sp.getUUID());
+        if (p1 == null || p2 == null) return null;
+        int w = Math.abs(p2.getX() - p1.getX()) + 1;
+        int h = Math.abs(p2.getY() - p1.getY()) + 1;
+        int l = Math.abs(p2.getZ() - p1.getZ()) + 1;
+        return w + " x " + h + " x " + l + " — " + String.format("%,d", (long) w * h * l) + " blocks";
+    }
+
     // ---- random texture --------------------------------------------------
 
     /** Toggle hotbar-random texturing for this player. Returns the new state. */

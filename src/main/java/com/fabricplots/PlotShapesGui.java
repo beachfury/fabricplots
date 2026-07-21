@@ -50,7 +50,7 @@ public final class PlotShapesGui {
         final UUID id = sp.getUUID();
         final ServerLevel level = (ServerLevel) sp.level();
         final Params p = params(id);
-        for (int i = 0; i < 54; i++) gui.clearSlot(i);
+        for (int i = 0; i < 54; i++) gui.setSlot(i, PlotEditGui.filler());
 
         // Row 1 — pick a shape.
         shapeBtn(gui, sp, 0, Items.SNOWBALL, PlotEdit.Shape.CIRCLE, "Circle", "Flat disc — hollow = ring");
@@ -97,28 +97,11 @@ public final class PlotShapesGui {
         gui.setSlot(33, PlotEditGui.textureToggle(sp, () -> render(gui, sp)));
         gui.setSlot(35, btn(Items.CLOCK, "Undo last edit", (i, t, a, g) -> PlotEdit.undo(sp, level)));
 
-        // Row 5 — measuring helpers (corner 1 → corner 2).
-        gui.setSlot(37, new GuiElementBuilder(Items.GOLD_INGOT)
-                .setName(Component.literal("Find center of line"))
-                .addLoreLine(Component.literal("Marks the middle of corner 1 → corner 2 with gold"))
-                .addLoreLine(Component.literal("Odd length = 1 block, even = the middle 2"))
-                .addLoreLine(Component.literal("Doubles as the shape center — build right on it"))
-                .setCallback((i, t, a, g) -> PlotEdit.findLineCenter(sp, level)).build());
-        gui.setSlot(39, new GuiElementBuilder(Items.OAK_SIGN)
-                .setName(Component.literal("Measuring tape"))
-                .addLoreLine(Component.literal("Yellow/black stripes corner 1 → corner 2 (straight runs)"))
-                .addLoreLine(Component.literal("Counts from 1; numbered signs every 2, 5, or 10"))
-                .setCallback((i, t, a, g) -> PlotEdit.tape(sp, level)).build());
-        gui.setSlot(41, new GuiElementBuilder(Items.BARRIER)
-                .setName(Component.literal("Clear measuring tape"))
-                .addLoreLine(Component.literal("Puts back exactly what the tape covered"))
-                .setCallback((i, t, a, g) -> PlotEdit.clearTape(sp, level)).build());
-
-        // Row 6 — back + held-block indicator.
+        // Row 6 — back, corners (for the line tool), held-block indicator.
         gui.setSlot(45, btn(Items.ARROW, "Back to editor", (i, t, a, g) -> PlotEditGui.open(sp)));
-        BlockState held = PlotEdit.heldBlock(sp);
-        gui.setSlot(49, new GuiElementBuilder(held != null ? sp.getMainHandItem().getItem() : Items.BARRIER)
-                .setName(Component.literal(held != null ? "Placing: the block in your hand" : "Hold a block to place")).build());
+        gui.setSlot(47, PlotEditGui.cornerBtn(sp, true));
+        gui.setSlot(48, PlotEditGui.cornerBtn(sp, false));
+        gui.setSlot(51, PlotEditGui.heldIndicator(sp));
     }
 
     private static void shapeBtn(SimpleGui gui, ServerPlayer sp, int slot, Item icon,
