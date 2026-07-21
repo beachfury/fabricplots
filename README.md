@@ -50,12 +50,16 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   `hsphere`, `cyl`, `disc`, `ring`, `line`, `copy`, `cut`, `paste`, `stack`, `move`, `undo`, `redo` — every
   block written is ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing
   risk, no WorldEdit region setup.
-- **Shapes screen** — a builder GUI inside `/plot edit`: circle, square, sphere, cylinder, pyramid, and a
-  3D diagonal **line tool**, each filled or hollow (ring / frame / shell / tube), with size, height,
-  thickness, and repeat×spacing dials. A self-cleaning **gold center marker** shows exactly where the shape
-  will land, and a **random-texture toggle** mixes every block in your hotbar for natural-looking builds.
-  Measuring helpers included: **find the center** of any corner-to-corner line (`/plot center`) and a
-  temporary yellow/black **measuring tape** with numbered signs (`/plot tape`).
+- **Editor hub with Shapes & Measure screens** — `/plot edit` opens a quick-bar hub (corners, clipboard,
+  fill/walls, stack/move, undo/redo) with doors into two dedicated screens. **Shapes**: circle, square,
+  sphere, cylinder, pyramid, and a 3D diagonal **line tool**, each filled or hollow (ring / frame /
+  shell / tube), with size (up to 256), height, thickness, and repeat×spacing dials, built on a
+  self-cleaning **gold center marker** that shows exactly where the shape will land. **Measure**: a live
+  *W × H × L* selection readout, **find the center** of any corner-to-corner line (`/plot center`), and a
+  temporary yellow/black **measuring tape** with glowing numbered signs (`/plot tape`).
+- **Random texture mode** — toggle it on and every edit *and every block you place by hand* mixes all
+  the blocks in your hotbar randomly: lay natural-looking paths without ever scrolling. Duplicate slots
+  weight the mix; in survival the cost comes from the stack that actually got placed.
 - **Clickable menus (sgui, crossplay)** — `/plot menu` (hub with **Claim a Plot**, My Plots, Build Editor, Portal
   Keys, **Browse Plots**, Top Plots), `/plot edit` (build GUI; material = the block in your hand), and per-plot
   settings: rename, floor-block picker, sidewalk & wall designers, sky & weather, greeting, PvP toggle, transfer,
