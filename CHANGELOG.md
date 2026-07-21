@@ -3,16 +3,25 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
-## [0.3.0] — 2026-07-18
+## [0.3.0] — 2026-07-20
 
 The shapes update.
 
 ### Added
+- **Reorganized editor.** `/plot edit` is now a proper hub: a quick bar with corners, copy/cut/paste,
+  undo/redo, fill/walls, stack/move (with their amount knob), plus doors into the two new dedicated
+  screens — **Shapes…** and **Measure…**. Corner buttons appear on every screen, and unused slots are
+  filled with glass so the groups read at a glance (Java and Bedrock alike).
+- **Measure screen.** Everything measuring in one place: a **live selection readout** showing your
+  corner 1 → corner 2 box as *Width × Height × Length — n blocks* (no tape needed just to answer "how
+  long is this wall?"), plus Find center and the measuring tape.
 - **Shapes screen.** `/plot edit` → **Shapes…** opens a dedicated builder: pick **circle, square,
   sphere, cylinder, pyramid, or line**, choose **Filled or Hollow** (hollow = ring, frame, shell, tube,
   or stepped frame), and dial in **Size**, **Height** (extrudes flat shapes into towers), **Thickness**
   (hollow walls and line beams), and **Repeat × Spacing** (stack vertical copies with an air gap —
-  instant floors). Parameter buttons: left-click +1, right-click −1, shift for ±5.
+  instant floors). Parameter buttons: left-click +1, right-click −1, shift for ±10. Sizes go up to
+  **256** and heights to **128**, so shapes span even large merged plots (the 65,536-blocks-per-edit
+  safety cap still applies — hollow shapes are the way to go huge).
 - **Gold center marker.** *Set center* drops a gold block at your feet — a single block for odd sizes,
   a 2×2 for even sizes — so you can see exactly where the shape will land before you build. The marker
   is self-cleaning: whatever it covered is restored when you build, move it, or clear it. No marker?
@@ -30,9 +39,10 @@ The shapes update.
   circle" gives you a perfectly centered window.
 - **Measuring tape.** Corner 1 → corner 2 becomes a yellow/black caution-stripe ruler (straight
   runs only), counting from 1, with numbered signs every 2, 5, or 10 blocks depending on length —
-  start and end are always numbered. Horizontal runs get signs standing on top; vertical runs get
-  wall signs facing you. Temporary and self-cleaning: laying a new tape or clearing it (button or
-  `/plot tape clear`) puts back exactly what it covered.
+  start and end are always numbered — in **black glow-ink** so they read day or night. Horizontal
+  runs get signs standing on top; vertical runs get wall signs facing you. Temporary and
+  self-cleaning: laying a new tape or clearing it (button or `/plot tape clear`) puts back exactly
+  what it covered.
 - **New commands:** `/plot disc <block> <size> [height]`, `/plot ring <block> <size> [height]`,
   `/plot line <block> [thickness]`, `/plot center`, `/plot tape`, `/plot tape clear`.
 
