@@ -55,7 +55,7 @@ public final class PlotBrushGui {
         typeBtn(gui, sp, stick, 1, Items.SNOWBALL, PlotBrush.Type.ROUND, "Round", "Solid stamp — disc on surface, ball in air mode");
         typeBtn(gui, sp, stick, 2, Items.GRASS_BLOCK, PlotBrush.Type.OVERLAY, "Overlay", "Repaints the exposed surface only (always surface mode)");
         typeBtn(gui, sp, stick, 3, Items.SUGAR, PlotBrush.Type.SPRAY, "Spray", "Very sparse dusting — flowers, ore flecks");
-        typeBtn(gui, sp, stick, 4, Items.SPONGE, PlotBrush.Type.ERASE, "Erase", "Strokes blocks to air (palette not needed)");
+        typeBtn(gui, sp, stick, 4, Items.SPONGE, PlotBrush.Type.ERASE, "Erase", "Surface mode restores the ground; ball mode clears to air");
         typeBtn(gui, sp, stick, 5, Items.STONE_BRICKS, PlotBrush.Type.WALL, "Wall", "Textures the vertical face you aim at — mix up flat walls");
         gui.setSlot(7, new GuiElementBuilder(c.surface ? Items.GRASS_BLOCK : Items.ENDER_PEARL)
                 .setName(Component.literal("Mode: " + (c.surface ? "Surface" : "Ball")))
