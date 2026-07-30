@@ -96,6 +96,7 @@ public final class PlotCommands {
                         .then(Commands.argument("player", GameProfileArgument.gameProfile())
                                 .executes(PlotCommands::removeAll)))
                 .then(Commands.literal("editwand").executes(PlotCommands::editwand))
+                .then(Commands.literal("brush").executes(PlotCommands::brush))
                 .then(Commands.literal("pos1").executes(PlotCommands::pos1))
                 .then(Commands.literal("pos2").executes(PlotCommands::pos2))
                 .then(Commands.literal("set")
@@ -299,6 +300,15 @@ public final class PlotCommands {
         } catch (Exception e) { return err(ctx, e); }
     }
 
+    private static int brush(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            p.getInventory().placeItemBackInInventory(com.fabricplots.edit.PlotBrush.createBrush());
+            msg(ctx, "Paint brush added. Sneak + right-click to configure it, right-click to paint.");
+            return 1;
+        } catch (Exception e) { return err(ctx, e); }
+    }
+
     private static int editwand(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
@@ -400,6 +410,7 @@ public final class PlotCommands {
         section(src, "Building");
         line(src, "/plot edit", "open the build GUI");
         line(src, "/plot editwand", "get the selection wand");
+        line(src, "/plot brush", "get a paint brush (sneak-click to configure)");
         line(src, "/plot pos1", "set selection corner 1");
         line(src, "/plot pos2", "set selection corner 2");
         line(src, "/plot set <block>", "fill the selection");
