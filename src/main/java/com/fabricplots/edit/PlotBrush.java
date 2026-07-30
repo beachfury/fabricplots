@@ -111,7 +111,7 @@ public final class PlotBrush {
             if (world.dimension() != FabricPlots.PLOTS_DIM || world.isClientSide()) return InteractionResult.PASS;
             ItemStack held = player.getItemInHand(hand);
             if (!isBrush(held) || !(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
-            if (player.isShiftKeyDown()) openGui.accept(sp); else paint(sp, held);
+            if (player.isShiftKeyDown()) sp.level().getServer().execute(() -> openGui.accept(sp)); else paint(sp, held);
             return InteractionResult.SUCCESS;
         });
         // Clicking directly on a block fires UseBlock first — same behavior, and swallow the click
@@ -120,7 +120,7 @@ public final class PlotBrush {
             if (world.dimension() != FabricPlots.PLOTS_DIM || world.isClientSide()) return InteractionResult.PASS;
             ItemStack held = player.getItemInHand(hand);
             if (!isBrush(held) || !(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
-            if (player.isShiftKeyDown()) openGui.accept(sp); else paint(sp, held);
+            if (player.isShiftKeyDown()) sp.level().getServer().execute(() -> openGui.accept(sp)); else paint(sp, held);
             return InteractionResult.SUCCESS;
         });
         // Radius preview while aiming, and selection outlines while holding the editor wand.
