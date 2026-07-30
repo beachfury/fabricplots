@@ -45,7 +45,7 @@ public final class PlotBrush {
     private static final int REACH = 30;
     private static final java.util.Random RNG = new java.util.Random();
 
-    public enum Type { SPLATTER, ROUND, OVERLAY, SPRAY, ERASE }
+    public enum Type { SPLATTER, ROUND, OVERLAY, SPRAY, ERASE, WALL }
 
     /** Brush settings, (de)serialized from the stick's custom-data tag. */
     public static final class Config {
@@ -169,6 +169,30 @@ public final class PlotBrush {
         int r = c.size;
         List<PlotEdit.Write> writes = new ArrayList<>();
 
+        if (c.type == Type.WALL) {
+            net.minecraft.core.Direction face = ((BlockHitResult) hit).getDirection();
+            if (!face.getAxis().isHorizontal()) { msg(sp, "Aim at the SIDE of a wall to texture it."); return; }
+            net.minecraft.core.Direction inward = face.getOpposite(), tangent = face.getClockWise();
+            for (int u = -r; u <= r; u++) for (int v = -r; v <= r; v++) {
+                double dist = Math.sqrt(u * u + v * v);
+                if (dist > r + 0.45) continue;
+                double chance = c.density / 100.0;
+                if (c.fade) chance *= Math.max(0, 1.0 - (dist / (r + 0.5)) * (dist / (r + 0.5)));
+                if (RNG.nextDouble() > chance) continue;
+                // scan into the wall from just in front of it, so bumpy walls still get painted
+                BlockPos start = center.relative(face, 2).relative(tangent, u).above(v);
+                for (int k = 0; k <= 5; k++) {
+                    BlockPos wp = start.relative(inward, k);
+                    BlockState cur = level.getBlockState(wp);
+                    if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
+                    addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, false);
+                    break;
+                }
+            }
+            PlotEdit.commit(sp, level, writes, brushVerb(c.type));
+            return;
+        }
+
         for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
             double dist = Math.sqrt(dx * dx + dz * dz);
             if (dist > r + 0.45) continue;
@@ -187,7 +211,7 @@ public final class PlotBrush {
                     BlockPos p = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
                     BlockState cur = level.getBlockState(p);
                     if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
-                    addWrite(writes, sp, level, admin, p, cur, maskBlock, palette, c);
+                    addWrite(writes, sp, level, admin, p, cur, maskBlock, palette, c, true);
                     break;
                 }
             } else {
@@ -202,7 +226,7 @@ public final class PlotBrush {
                     if (c.fade) ballChance *= Math.max(0, 1.0 - (d3 / (r + 0.5)) * (d3 / (r + 0.5)));
                     if (RNG.nextDouble() > ballChance) continue;
                     BlockPos p = center.offset(dx, dy, dz);
-                    addWrite(writes, sp, level, admin, p, level.getBlockState(p), maskBlock, palette, c);
+                    addWrite(writes, sp, level, admin, p, level.getBlockState(p), maskBlock, palette, c, false);
                 }
             }
         }
@@ -210,20 +234,41 @@ public final class PlotBrush {
     }
 
     private static void addWrite(List<PlotEdit.Write> writes, ServerPlayer sp, ServerLevel level, boolean admin,
-                                 BlockPos p, BlockState cur, Block maskBlock, List<BlockState> palette, Config c) {
+                                 BlockPos p, BlockState cur, Block maskBlock, List<BlockState> palette, Config c,
+                                 boolean surfaceMode) {
         if (!PlotEdit.canEdit(sp, admin, p.getX(), p.getY(), p.getZ())) return;
         if (maskBlock != null && !cur.is(maskBlock)) return;
         if (c.type == Type.ERASE) {
             if (!cur.isAir()) writes.add(new PlotEdit.Write(p, Blocks.AIR.defaultBlockState()));
-        } else {
-            writes.add(new PlotEdit.Write(p, palette.get(RNG.nextInt(palette.size()))));
+            return;
         }
+        BlockState chosen = palette.get(RNG.nextInt(palette.size()));
+        // Half blocks (slabs, trapdoors, carpets…) go ON TOP of the surface — sinking them into
+        // the ground punches trapdoor-holes in the lawn. Full blocks and stairs replace as before.
+        if (surfaceMode && sitsOnTop(chosen)) {
+            BlockPos top = p.above();
+            if (!level.getBlockState(top).isAir()) return;
+            if (!PlotEdit.canEdit(sp, admin, top.getX(), top.getY(), top.getZ())) return;
+            writes.add(new PlotEdit.Write(top, chosen));
+        } else {
+            writes.add(new PlotEdit.Write(p, chosen));
+        }
+    }
+
+    /** Blocks that should rest on the surface rather than replace it. */
+    private static boolean sitsOnTop(BlockState s) {
+        Block b = s.getBlock();
+        return b instanceof net.minecraft.world.level.block.SlabBlock
+                || b instanceof net.minecraft.world.level.block.TrapDoorBlock
+                || b instanceof net.minecraft.world.level.block.CarpetBlock
+                || b instanceof net.minecraft.world.level.block.BasePressurePlateBlock
+                || b instanceof net.minecraft.world.level.block.SnowLayerBlock;
     }
 
     private static String brushVerb(Type t) {
         return switch (t) {
             case SPLATTER -> "Splattered"; case ROUND -> "Painted"; case OVERLAY -> "Overlaid";
-            case SPRAY -> "Sprayed"; case ERASE -> "Erased";
+            case SPRAY -> "Sprayed"; case ERASE -> "Erased"; case WALL -> "Textured";
         } + " —";
     }
 
