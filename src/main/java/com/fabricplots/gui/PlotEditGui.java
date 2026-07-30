@@ -1,5 +1,7 @@
 package com.fabricplots.gui;
 
+import com.fabricplots.compat.Compat;
+
 import com.fabricplots.edit.PlotEdit;
 
 import eu.pb4.sgui.api.elements.GuiElement;
@@ -129,12 +131,10 @@ public final class PlotEditGui {
                 .setCallback((i, t, a, g) -> { PlotEdit.toggleRandomTexture(sp); rerender.run(); }).build();
     }
 
-    // Registry-ID lookup so colored items work on both the 26.1.2 and 26.2 branches
-    // (26.2 moved the colored-item constants into ColorCollection; registry ids didn't change).
+    // Registry-ID lookup via the version seam (colored-item CONSTANTS differ across branches).
     private static Item byRegistryId(String id) {
         try {
-            Item it = net.minecraft.core.registries.BuiltInRegistries.ITEM
-                    .getValue(net.minecraft.resources.Identifier.parse(id));
+            Item it = Compat.item(id);
             return (it == null || it == Items.AIR) ? Items.PAINTING : it;
         } catch (Exception e) { return Items.PAINTING; }
     }
