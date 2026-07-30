@@ -288,6 +288,10 @@ public final class PlotBrush {
             BlockPos top = p.above();
             if (!level.getBlockState(top).isAir()) return;
             if (!PlotEdit.canEdit(sp, admin, top.getX(), top.getY(), top.getZ())) return;
+            // buttons, levers, grindstones default to wall attachment — on the ground they lie flat
+            if (chosen.hasProperty(net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock.FACE))
+                chosen = chosen.setValue(net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock.FACE,
+                        net.minecraft.world.level.block.state.properties.AttachFace.FLOOR);
             writes.add(new PlotEdit.Write(top, chosen));
         } else {
             writes.add(new PlotEdit.Write(p, chosen));
