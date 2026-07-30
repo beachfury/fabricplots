@@ -245,11 +245,15 @@ public final class PlotBrush {
 
             if (surfaceMode) {
                 if (RNG.nextDouble() > chance) continue;
-                // walk down from a little above the aim point to the first solid block
-                for (int y = center.getY() + Math.min(r, 6) + 1; y >= center.getY() - r - 2; y--) {
+                // Splatter/spray never reach above the aimed block, and only paint OPEN surfaces —
+                // so strokes can't stack onto blocks from earlier strokes and ratchet upward.
+                boolean scatter = c.type == Type.SPLATTER || c.type == Type.SPRAY;
+                int scanTop = scatter ? center.getY() : center.getY() + Math.min(r, 6) + 1;
+                for (int y = scanTop; y >= center.getY() - r - 2; y--) {
                     BlockPos p = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
                     BlockState cur = level.getBlockState(p);
                     if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
+                    if (scatter && !level.getBlockState(p.above()).isAir()) break; // covered — skip column
                     addWrite(writes, sp, level, admin, p, cur, maskBlock, palette, c, true);
                     break;
                 }
