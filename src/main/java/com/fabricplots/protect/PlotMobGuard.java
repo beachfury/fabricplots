@@ -1,4 +1,8 @@
-package com.fabricplots;
+package com.fabricplots.protect;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.core.PlotData;
+import com.fabricplots.core.PlotManager;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.core.BlockPos;

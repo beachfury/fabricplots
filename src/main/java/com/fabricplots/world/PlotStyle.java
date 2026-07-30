@@ -1,4 +1,10 @@
-package com.fabricplots;
+package com.fabricplots.world;
+
+import com.fabricplots.core.PlotConfig;
+import com.fabricplots.core.PlotData;
+import com.fabricplots.core.PlotManager;
+import com.fabricplots.core.PlotPos;
+import com.fabricplots.protect.PortalManager;
 
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;

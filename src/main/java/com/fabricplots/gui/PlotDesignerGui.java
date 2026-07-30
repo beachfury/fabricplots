@@ -1,4 +1,12 @@
-package com.fabricplots;
+package com.fabricplots.gui;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.core.PlotConfig;
+import com.fabricplots.core.PlotData;
+import com.fabricplots.core.PlotManager;
+import com.fabricplots.core.PlotPos;
+import com.fabricplots.protect.PlotProtection;
+import com.fabricplots.world.PlotStyle;
 
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;

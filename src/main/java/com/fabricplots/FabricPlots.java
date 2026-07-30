@@ -1,5 +1,21 @@
 package com.fabricplots;
 
+import com.fabricplots.command.PlotCommands;
+import com.fabricplots.core.CombineWand;
+import com.fabricplots.core.PlotConfig;
+import com.fabricplots.core.PlotData;
+import com.fabricplots.core.PlotExpiry;
+import com.fabricplots.core.PlotManager;
+import com.fabricplots.core.PlotsConfig;
+import com.fabricplots.edit.PlotEdit;
+import com.fabricplots.player.PlotAmbience;
+import com.fabricplots.player.PlotPlaceholders;
+import com.fabricplots.protect.PlotMobGuard;
+import com.fabricplots.protect.PlotProtection;
+import com.fabricplots.protect.PortalManager;
+import com.fabricplots.world.PlotWorldPainter;
+import com.fabricplots.world.StreetSweeper;
+
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;

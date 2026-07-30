@@ -1,4 +1,9 @@
-package com.fabricplots;
+package com.fabricplots.world;
+
+import com.fabricplots.core.PlotConfig;
+import com.fabricplots.core.PlotManager;
+import com.fabricplots.core.PlotsConfig;
+import com.fabricplots.protect.PortalManager;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

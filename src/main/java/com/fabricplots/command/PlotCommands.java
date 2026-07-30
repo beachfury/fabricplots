@@ -1,4 +1,20 @@
-package com.fabricplots;
+package com.fabricplots.command;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.core.CombineWand;
+import com.fabricplots.core.PlotConfig;
+import com.fabricplots.core.PlotData;
+import com.fabricplots.core.PlotManager;
+import com.fabricplots.core.PlotPos;
+import com.fabricplots.core.PlotsConfig;
+import com.fabricplots.edit.PlotEdit;
+import com.fabricplots.gui.PlotEditGui;
+import com.fabricplots.gui.PlotMenus;
+import com.fabricplots.player.PlotEconomy;
+import com.fabricplots.protect.PlotProtection;
+import com.fabricplots.protect.PortalManager;
+import com.fabricplots.world.PlotBiomes;
+import com.fabricplots.world.PlotWorldPainter;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;

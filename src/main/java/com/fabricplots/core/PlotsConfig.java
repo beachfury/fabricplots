@@ -1,4 +1,6 @@
-package com.fabricplots;
+package com.fabricplots.core;
+
+import com.fabricplots.FabricPlots;
 
 import net.fabricmc.loader.api.FabricLoader;
 

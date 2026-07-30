@@ -1,4 +1,6 @@
-package com.fabricplots;
+package com.fabricplots.gui;
+
+import com.fabricplots.edit.PlotEdit;
 
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;

@@ -1,7 +1,8 @@
 package com.fabricplots.mixin;
 
 import com.fabricplots.FabricPlots;
-import com.fabricplots.PlotManager;
+import com.fabricplots.core.PlotManager;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;

@@ -1,4 +1,7 @@
-package com.fabricplots;
+package com.fabricplots.core;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.protect.PlotProtection;
 
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;

@@ -1,4 +1,7 @@
-package com.fabricplots;
+package com.fabricplots.player;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.core.PlotData;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;

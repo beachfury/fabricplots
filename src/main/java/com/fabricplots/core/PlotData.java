@@ -1,4 +1,6 @@
-package com.fabricplots;
+package com.fabricplots.core;
+
+import com.fabricplots.world.PlotStyle;
 
 import net.minecraft.core.BlockPos;
 
