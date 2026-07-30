@@ -111,7 +111,7 @@ public final class PlotBrush {
             if (world.dimension() != FabricPlots.PLOTS_DIM || world.isClientSide()) return InteractionResult.PASS;
             ItemStack held = player.getItemInHand(hand);
             if (!isBrush(held) || !(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
-            if (player.isShiftKeyDown()) sp.level().getServer().execute(() -> openGui.accept(sp)); else paint(sp, held);
+            if (player.isShiftKeyDown()) PENDING_GUI.add(sp.getUUID()); else paint(sp, held);
             return InteractionResult.SUCCESS;
         });
         // Clicking directly on a block fires UseBlock first — same behavior, and swallow the click
@@ -120,14 +120,20 @@ public final class PlotBrush {
             if (world.dimension() != FabricPlots.PLOTS_DIM || world.isClientSide()) return InteractionResult.PASS;
             ItemStack held = player.getItemInHand(hand);
             if (!isBrush(held) || !(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
-            if (player.isShiftKeyDown()) sp.level().getServer().execute(() -> openGui.accept(sp)); else paint(sp, held);
+            if (player.isShiftKeyDown()) PENDING_GUI.add(sp.getUUID()); else paint(sp, held);
             return InteractionResult.SUCCESS;
         });
-        // Radius preview while aiming, and selection outlines while holding the editor wand.
+        // GUI opens are queued and drained here — end-of-tick, safely after the click packet that
+        // requested them (opening inside the interaction gets closed by the client immediately).
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (server.getTickCount() % 4 != 0) return;
             ServerLevel level = server.getLevel(FabricPlots.PLOTS_DIM);
             if (level == null) return;
+            if (!PENDING_GUI.isEmpty()) {
+                for (ServerPlayer sp : level.players())
+                    if (PENDING_GUI.remove(sp.getUUID())) openGui.accept(sp);
+                PENDING_GUI.clear(); // anyone who left the dimension mid-click
+            }
+            if (server.getTickCount() % 4 != 0) return;
             for (ServerPlayer sp : level.players()) {
                 ItemStack held = sp.getMainHandItem();
                 if (isBrush(held)) previewRing(sp, level, read(held).size);
@@ -135,6 +141,8 @@ public final class PlotBrush {
             }
         });
     }
+
+    private static final java.util.Set<java.util.UUID> PENDING_GUI = new java.util.HashSet<>();
 
     // ---- painting ----------------------------------------------------------
 
