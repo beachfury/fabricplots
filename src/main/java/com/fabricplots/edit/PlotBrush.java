@@ -169,6 +169,42 @@ public final class PlotBrush {
         int r = c.size;
         List<PlotEdit.Write> writes = new ArrayList<>();
 
+        // Surface-mode Erase = restore the ground, not dig holes: clear everything above the
+        // plot floor level, repaint the floor block (respecting custom plot floors), and refill
+        // any holes dug below it. Ball-mode Erase still just clears to air.
+        if (c.type == Type.ERASE && c.surface) {
+            int top = center.getY() + Math.max(6, Math.min(r, 10));
+            int groundY = com.fabricplots.core.PlotConfig.GROUND_Y;
+            for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
+                double dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > r + 0.45) continue;
+                double chance = c.fade ? Math.max(0, 1.0 - (dist / (r + 0.5)) * (dist / (r + 0.5))) : 1.0;
+                if (RNG.nextDouble() > chance) continue;
+                int x = center.getX() + dx, z = center.getZ() + dz;
+                com.fabricplots.core.PlotData plot = com.fabricplots.core.PlotManager.owningPlot(x, z);
+                BlockState floor = plot != null ? com.fabricplots.world.PlotWorldPainter.surfaceFor(plot) : null;
+                for (int y = top; y > groundY; y--) {
+                    BlockState cur = level.getBlockState(new BlockPos(x, y, z));
+                    if (cur.isAir()) continue;
+                    if (maskBlock != null && !cur.is(maskBlock)) continue;
+                    if (PlotEdit.canEdit(sp, admin, x, y, z))
+                        writes.add(new PlotEdit.Write(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState()));
+                }
+                if (maskBlock == null && floor != null) {
+                    BlockState cur = level.getBlockState(new BlockPos(x, groundY, z));
+                    if (!cur.equals(floor) && PlotEdit.canEdit(sp, admin, x, groundY, z))
+                        writes.add(new PlotEdit.Write(new BlockPos(x, groundY, z), floor));
+                    // refill anything dug out below the floor
+                    for (int y = groundY - 1; y >= Math.max(com.fabricplots.core.PlotConfig.DIRT_BOTTOM_Y, groundY - 8); y--) {
+                        if (level.getBlockState(new BlockPos(x, y, z)).isAir() && PlotEdit.canEdit(sp, admin, x, y, z))
+                            writes.add(new PlotEdit.Write(new BlockPos(x, y, z), Blocks.DIRT.defaultBlockState()));
+                    }
+                }
+            }
+            PlotEdit.commit(sp, level, writes, "Restored ground —");
+            return;
+        }
+
         if (c.type == Type.WALL) {
             net.minecraft.core.Direction face = ((BlockHitResult) hit).getDirection();
             if (!face.getAxis().isHorizontal()) { msg(sp, "Aim at the SIDE of a wall to texture it."); return; }
