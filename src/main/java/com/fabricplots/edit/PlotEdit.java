@@ -47,19 +47,19 @@ public final class PlotEdit {
     private static final String WAND_NAME = "plot_editor";
     private static final net.minecraft.world.item.Item WAND_ITEM = Items.WOODEN_AXE;
     private static final int MAX_BLOCKS = 65536;   // per edit — keeps a single op from freezing the server
-    private static final int UNDO_DEPTH = 5;       // edits kept per player
+    private static final int UNDO_DEPTH = 10; // brushes invite rapid strokes       // edits kept per player
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 
-    private static final Map<UUID, BlockPos> POS1 = new HashMap<>();
-    private static final Map<UUID, BlockPos> POS2 = new HashMap<>();
+    static final Map<UUID, BlockPos> POS1 = new HashMap<>(); // package-private: selection outline particles
+    static final Map<UUID, BlockPos> POS2 = new HashMap<>();
     private static final Map<UUID, Boolean> NEXT_IS_POS2 = new HashMap<>(); // wand alternation
     private record Snapshot(BlockPos pos, BlockState old) {}
     private static final Map<UUID, Deque<List<Snapshot>>> UNDO = new HashMap<>();
     private static final Map<UUID, Deque<List<Snapshot>>> REDO = new HashMap<>();
 
     private record ClipBlock(int dx, int dy, int dz, BlockState state) {} // clipboard, relative to copy origin
-    private record Write(BlockPos pos, BlockState state) {}
+    record Write(BlockPos pos, BlockState state) {} // package-private: PlotBrush builds strokes
     private static final Map<UUID, List<ClipBlock>> CLIPBOARD = new HashMap<>();
 
     // Random-texture toggle: when ON, every written block rolls from the BLOCK items in the
@@ -579,8 +579,9 @@ public final class PlotEdit {
 
     // ---- measuring tape --------------------------------------------------
 
-    // One tape per player: what each placed block covered, restored on clear/re-lay.
-    private static final Map<UUID, List<Snapshot>> TAPE = new HashMap<>();
+    // Up to 4 tapes per player (e.g. boxing in a footprint); laying a 5th retires the oldest.
+    private static final int MAX_TAPES = 4;
+    private static final Map<UUID, ArrayDeque<List<Snapshot>>> TAPE = new HashMap<>();
 
     /** Registry-ID lookup via the version seam — colored blocks stay identical across branches. */
     private static Block blockById(String id) {
@@ -601,7 +602,8 @@ public final class PlotEdit {
         int dx = p2.getX() - p1.getX(), dy = p2.getY() - p1.getY(), dz = p2.getZ() - p1.getZ();
         int nonZero = (dx != 0 ? 1 : 0) + (dy != 0 ? 1 : 0) + (dz != 0 ? 1 : 0);
         if (nonZero > 1) { msg(sp, "The tape runs straight only — line corners 1 and 2 up on a single axis."); return 0; }
-        clearTape(sp, level);
+        ArrayDeque<List<Snapshot>> tapes = TAPE.computeIfAbsent(id, k -> new ArrayDeque<>());
+        while (tapes.size() >= MAX_TAPES) restoreTape(level, tapes.pollFirst()); // retire the oldest
 
         int n = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz))) + 1;
         int interval = n <= 20 ? 2 : n <= 50 ? 5 : 10;
@@ -639,8 +641,8 @@ public final class PlotEdit {
                 labelSign(level, signPos, number);
             }
         }
-        TAPE.put(id, snaps);
-        msg(sp, "Tape laid — " + n + " blocks, numbered every " + interval + ". Clear it from the Shapes screen or /plot tape clear.");
+        tapes.addLast(snaps);
+        msg(sp, "Tape laid — " + n + " blocks, numbered every " + interval + " (" + tapes.size() + "/" + MAX_TAPES + " tapes). /plot tape clear removes them all.");
         return 1;
     }
 
@@ -650,7 +652,12 @@ public final class PlotEdit {
 
     /** Remove the player's tape, restoring what each stripe/sign covered (skips blocks changed since). */
     public static void clearTape(ServerPlayer sp, ServerLevel level) {
-        List<Snapshot> snaps = TAPE.remove(sp.getUUID());
+        ArrayDeque<List<Snapshot>> tapes = TAPE.remove(sp.getUUID());
+        if (tapes == null) return;
+        while (!tapes.isEmpty()) restoreTape(level, tapes.pollFirst());
+    }
+
+    private static void restoreTape(ServerLevel level, List<Snapshot> snaps) {
         if (snaps == null) return;
         Block yellow = blockById("minecraft:yellow_concrete"), black = blockById("minecraft:black_concrete");
         for (Snapshot s : snaps) {
@@ -691,7 +698,7 @@ public final class PlotEdit {
     }
 
     /** Snapshot (deduped, original states), apply all writes, push one undo entry. */
-    private static int commit(ServerPlayer sp, ServerLevel level, List<Write> writes, String verb) {
+    static int commit(ServerPlayer sp, ServerLevel level, List<Write> writes, String verb) {
         if (writes.isEmpty()) { msg(sp, "Nothing to change — make sure it lands on a plot you own."); return 0; }
         if (writes.size() > MAX_BLOCKS) { msg(sp, "That's over " + MAX_BLOCKS + " blocks — use a smaller selection or count."); return 0; }
         Set<BlockPos> seen = new HashSet<>();
@@ -704,7 +711,7 @@ public final class PlotEdit {
     }
 
     /** Can this player write at x/y/z? (Y in range, not a portal, and — unless admin — a plot they can build on.) */
-    private static boolean canEdit(ServerPlayer sp, boolean admin, int x, int y, int z) {
+    static boolean canEdit(ServerPlayer sp, boolean admin, int x, int y, int z) {
         if (y < PlotConfig.DIRT_BOTTOM_Y || y > PlotConfig.WORLD_TOP_Y) return false;
         if (PortalManager.isProtected(new BlockPos(x, y, z))) return false;
         if (admin) return true;

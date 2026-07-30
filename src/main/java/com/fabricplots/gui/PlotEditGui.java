@@ -74,13 +74,17 @@ public final class PlotEditGui {
                 .setName(Component.literal("Shapes…"))
                 .addLoreLine(Component.literal("Circle, square, sphere, cylinder, pyramid, line"))
                 .setCallback((i, t, a, g) -> PlotShapesGui.open(sp)).build());
-        gui.setSlot(20, new GuiElementBuilder(Items.OAK_SIGN)
+        gui.setSlot(20, new GuiElementBuilder(Items.STICK)
+                .setName(Component.literal("Brushes…"))
+                .addLoreLine(Component.literal("Splatter, round, overlay, spray, erase — paint with a stick"))
+                .setCallback((i, t, a, g) -> PlotBrushGui.open(sp)).build());
+        gui.setSlot(22, new GuiElementBuilder(Items.OAK_SIGN)
                 .setName(Component.literal("Measure…"))
                 .addLoreLine(Component.literal("Selection size, find center, measuring tape"))
                 .setCallback((i, t, a, g) -> PlotMeasureGui.open(sp)).build());
-        gui.setSlot(23, btn(Items.GOLD_INGOT, "Find center of line",
+        gui.setSlot(24, btn(Items.GOLD_INGOT, "Find center of line",
                 (i, t, a, g) -> PlotEdit.findLineCenter(sp, level)));
-        gui.setSlot(25, textureToggle(sp, () -> render(gui, sp)));
+        gui.setSlot(26, textureToggle(sp, () -> render(gui, sp)));
 
         // Row 4 — held-block indicator.
         gui.setSlot(35, heldIndicator(sp));

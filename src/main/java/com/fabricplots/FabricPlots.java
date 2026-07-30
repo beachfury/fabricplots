@@ -84,6 +84,7 @@ public final class FabricPlots implements ModInitializer {
         PortalManager.register();
         // Plot edit wand (selection) — before protection so it can swallow its own clicks.
         PlotEdit.register();
+        com.fabricplots.edit.PlotBrush.register(com.fabricplots.gui.PlotBrushGui::open);
         // Grief protection inside the plots world.
         PlotProtection.register();
         // Biome-spawned mobs are confined to the plot they spawned on.
