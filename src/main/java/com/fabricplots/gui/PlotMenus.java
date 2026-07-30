@@ -1,5 +1,7 @@
 package com.fabricplots.gui;
 
+import com.fabricplots.compat.Compat;
+
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotData;
@@ -180,7 +182,7 @@ public final class PlotMenus {
 
     private static Item itemByRegistryId(String id) {
         try {
-            Item it = BuiltInRegistries.ITEM.getValue(Identifier.parse(id));
+            Item it = Compat.item(id);
             return (it == null || it == Items.AIR) ? Items.GRASS_BLOCK : it;
         } catch (Exception e) { return Items.GRASS_BLOCK; }
     }
@@ -620,7 +622,7 @@ public final class PlotMenus {
 
     private static Item itemOf(String blockId) {
         try {
-            Block b = BuiltInRegistries.BLOCK.getValue(Identifier.parse(blockId));
+            Block b = Compat.block(blockId);
             Item it = b.asItem();
             return it == Items.AIR ? Items.GRASS_BLOCK : it;
         } catch (Exception e) { return Items.GRASS_BLOCK; }

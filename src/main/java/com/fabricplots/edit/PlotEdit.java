@@ -1,5 +1,7 @@
 package com.fabricplots.edit;
 
+import com.fabricplots.compat.Compat;
+
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotData;
@@ -580,10 +582,9 @@ public final class PlotEdit {
     // One tape per player: what each placed block covered, restored on clear/re-lay.
     private static final Map<UUID, List<Snapshot>> TAPE = new HashMap<>();
 
-    /** Registry-ID lookup — keeps colored blocks identical across the 26.1.2 and 26.2 branches. */
+    /** Registry-ID lookup via the version seam — colored blocks stay identical across branches. */
     private static Block blockById(String id) {
-        return net.minecraft.core.registries.BuiltInRegistries.BLOCK
-                .getValue(net.minecraft.resources.Identifier.parse(id));
+        return Compat.block(id);
     }
 
     /**
@@ -644,17 +645,7 @@ public final class PlotEdit {
     }
 
     private static void labelSign(ServerLevel level, BlockPos pos, int number) {
-        if (level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.SignBlockEntity sbe) {
-            Component text = Component.literal(String.valueOf(number));
-            // Black dye + glow ink so the number reads clearly day or night.
-            sbe.setText(sbe.getText(true).setMessage(1, text)
-                    .setColor(net.minecraft.world.item.DyeColor.BLACK).setHasGlowingText(true), true);
-            sbe.setText(sbe.getText(false).setMessage(1, text)
-                    .setColor(net.minecraft.world.item.DyeColor.BLACK).setHasGlowingText(true), false);
-            sbe.setWaxed(true); // nobody should be able to edit the numbers
-            sbe.setChanged();
-            level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), Block.UPDATE_CLIENTS);
-        }
+        Compat.labelSign(level, pos, String.valueOf(number)); // version seam — sign API lives in compat
     }
 
     /** Remove the player's tape, restoring what each stripe/sign covered (skips blocks changed since). */

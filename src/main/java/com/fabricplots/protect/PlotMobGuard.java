@@ -1,5 +1,7 @@
 package com.fabricplots.protect;
 
+import com.fabricplots.compat.Compat;
+
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotData;
 import com.fabricplots.core.PlotManager;
@@ -46,7 +48,7 @@ public final class PlotMobGuard {
                 return;
             }
             HOME.put(mob.getUUID(), pos.immutable());
-            mob.setHomeTo(pos, HOME_RADIUS);
+            Compat.setHome(mob, pos, HOME_RADIUS);
         });
     }
 
@@ -103,7 +105,7 @@ public final class PlotMobGuard {
                 // First sighting (e.g. loaded from disk): adopt its current plot as home.
                 if (here != null) {
                     HOME.put(mob.getUUID(), mob.blockPosition().immutable());
-                    mob.setHomeTo(mob.blockPosition(), HOME_RADIUS);
+                    Compat.setHome(mob, mob.blockPosition(), HOME_RADIUS);
                 }
                 continue; // road mobs stay untracked; the unnamed-mob cleanup culls them
             }

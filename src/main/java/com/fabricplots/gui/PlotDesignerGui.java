@@ -1,5 +1,7 @@
 package com.fabricplots.gui;
 
+import com.fabricplots.compat.Compat;
+
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotData;
@@ -43,7 +45,7 @@ public final class PlotDesignerGui {
 
     private static Item byRegistryId(String id) {
         try {
-            Item it = BuiltInRegistries.ITEM.getValue(Identifier.parse(id));
+            Item it = Compat.item(id);
             return (it == null || it == Items.AIR) ? Items.GLASS_PANE : it;
         } catch (Exception e) { return Items.GLASS_PANE; }
     }
@@ -217,7 +219,7 @@ public final class PlotDesignerGui {
 
     private static Item itemOf(String blockId) {
         try {
-            Item it = BuiltInRegistries.BLOCK.getValue(Identifier.parse(blockId)).asItem();
+            Item it = Compat.block(blockId).asItem();
             return it == Items.AIR ? AIR_MARK : it;
         } catch (Exception e) { return AIR_MARK; }
     }

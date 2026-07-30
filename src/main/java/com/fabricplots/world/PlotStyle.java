@@ -1,5 +1,7 @@
 package com.fabricplots.world;
 
+import com.fabricplots.compat.Compat;
+
 import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotData;
 import com.fabricplots.core.PlotManager;
@@ -120,7 +122,7 @@ public final class PlotStyle {
     private static BlockState stateFor(String cellId, Direction toStreet) {
         if (cellId == null || cellId.isBlank()) return AIR;
         try {
-            Block b = BuiltInRegistries.BLOCK.getValue(Identifier.parse(cellId));
+            Block b = Compat.block(cellId);
             if (b == null || b == Blocks.AIR) return AIR;
             BlockState s = b.defaultBlockState();
             if (b instanceof StairBlock) {

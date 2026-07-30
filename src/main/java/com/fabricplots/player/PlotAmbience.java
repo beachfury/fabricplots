@@ -1,5 +1,7 @@
 package com.fabricplots.player;
 
+import com.fabricplots.compat.Compat;
+
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotData;
 
@@ -94,12 +96,7 @@ public final class PlotAmbience {
     // ---- packets ---------------------------------------------------------
 
     private static void sendFakeTime(ServerPlayer p, long dayTicks) {
-        ServerLevel level = (ServerLevel) p.level();
-        Holder<WorldClock> clock = level.registryAccess()
-                .lookupOrThrow(Registries.WORLD_CLOCK).getOrThrow(WorldClocks.OVERWORLD);
-        // rate 0 = frozen at that moment on the client.
-        p.connection.send(new ClientboundSetTimePacket(level.getGameTime(),
-                Map.of(clock, new ClockNetworkState(dayTicks, 0.0f, 0.0f))));
+        Compat.sendFrozenTime(p, dayTicks); // version seam — clock packets live in compat
     }
 
     private static void sendFakeWeather(ServerPlayer p, String weather) {
@@ -125,7 +122,7 @@ public final class PlotAmbience {
 
     private static void restoreReal(ServerPlayer p) {
         ServerLevel level = (ServerLevel) p.level();
-        p.connection.send(level.clockManager().createFullSyncPacket());
+        Compat.sendRealTime(p);
         if (level.isRaining()) {
             p.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0f));
             p.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, level.getRainLevel(1.0f)));

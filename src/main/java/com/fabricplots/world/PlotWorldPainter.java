@@ -1,5 +1,7 @@
 package com.fabricplots.world;
 
+import com.fabricplots.compat.Compat;
+
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotData;
@@ -187,7 +189,7 @@ public final class PlotWorldPainter {
     public static BlockState surfaceFor(PlotData data) {
         if (data == null || data.floorBlockId == null || data.floorBlockId.isBlank()) return GRASS;
         try {
-            Block b = BuiltInRegistries.BLOCK.getValue(Identifier.parse(data.floorBlockId));
+            Block b = Compat.block(data.floorBlockId);
             return (b == null || b == Blocks.AIR) ? GRASS : b.defaultBlockState();
         } catch (Exception e) {
             return GRASS;
