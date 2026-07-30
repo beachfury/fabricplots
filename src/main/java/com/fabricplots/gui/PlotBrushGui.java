@@ -36,7 +36,7 @@ public final class PlotBrushGui {
         ItemStack stick = heldBrush(sp);
 
         if (stick == null) {
-            gui.setSlot(22, new GuiElementBuilder(Items.STICK)
+            gui.setSlot(22, new GuiElementBuilder(Items.BRUSH)
                     .setName(Component.literal("Get a paint brush"))
                     .addLoreLine(Component.literal("Hold the brush, then sneak + right-click to configure it"))
                     .addLoreLine(Component.literal("Each stick remembers its own settings — keep several!"))
@@ -114,7 +114,7 @@ public final class PlotBrushGui {
         }
 
         // Row 4 — brush management.
-        gui.setSlot(28, new GuiElementBuilder(Items.STICK)
+        gui.setSlot(28, new GuiElementBuilder(Items.BRUSH)
                 .setName(Component.literal("Get another brush"))
                 .addLoreLine(Component.literal("A fresh stick with default settings"))
                 .setCallback((i, t, a, g) -> {
@@ -128,7 +128,7 @@ public final class PlotBrushGui {
 
         // Row 6 — back + status.
         gui.setSlot(45, PlotEditGui.btn(Items.ARROW, "Back to editor", (i, t, a, g) -> PlotEditGui.open(sp)));
-        gui.setSlot(49, new GuiElementBuilder(Items.STICK)
+        gui.setSlot(49, new GuiElementBuilder(Items.BRUSH)
                 .setName(Component.literal("Editing: the brush in your hand"))
                 .addLoreLine(Component.literal(c.type.name().charAt(0) + c.type.name().substring(1).toLowerCase()
                         + " · size " + c.size + " · " + (c.palette.isEmpty() ? "no blocks yet" : c.palette.size() + " palette entries")))

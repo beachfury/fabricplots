@@ -38,6 +38,9 @@ import java.util.function.Consumer;
  */
 public final class PlotBrush {
     public static final String BRUSH_NAME = "Plot Paint Brush";
+    // The vanilla archaeology brush — thematically right, and NOT a stick: Litematica and friends
+    // claim the stick as their client-side tool and eat the right-click before it reaches us.
+    static final net.minecraft.world.item.Item BRUSH_ITEM = Items.BRUSH;
     private static final String TAG = "fabricplots_brush";
     private static final int REACH = 30;
     private static final java.util.Random RNG = new java.util.Random();
@@ -60,14 +63,14 @@ public final class PlotBrush {
     // ---- the stick ---------------------------------------------------------
 
     public static ItemStack createBrush() {
-        ItemStack s = new ItemStack(Items.STICK);
+        ItemStack s = new ItemStack(BRUSH_ITEM);
         s.set(DataComponents.CUSTOM_NAME, Component.literal(BRUSH_NAME));
         write(s, new Config());
         return s;
     }
 
     public static boolean isBrush(ItemStack s) {
-        if (s.isEmpty() || s.getItem() != Items.STICK) return false;
+        if (s.isEmpty() || s.getItem() != BRUSH_ITEM) return false;
         CustomData d = s.get(DataComponents.CUSTOM_DATA);
         return d != null && d.copyTag().contains(TAG);
     }
@@ -108,18 +111,20 @@ public final class PlotBrush {
     /** openGui is injected by FabricPlots wiring so edit/ never depends on gui/. */
     public static void register(Consumer<ServerPlayer> openGui) {
         UseItemCallback.EVENT.register((player, world, hand) -> {
-            if (world.dimension() != FabricPlots.PLOTS_DIM || world.isClientSide()) return InteractionResult.PASS;
+            if (world.dimension() != FabricPlots.PLOTS_DIM) return InteractionResult.PASS;
             ItemStack held = player.getItemInHand(hand);
-            if (!isBrush(held) || !(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
+            if (!isBrush(held)) return InteractionResult.PASS;
+            if (world.isClientSide() || !(player instanceof ServerPlayer sp)) return InteractionResult.SUCCESS;
             if (player.isShiftKeyDown()) PENDING_GUI.add(sp.getUUID()); else paint(sp, held);
             return InteractionResult.SUCCESS;
         });
         // Clicking directly on a block fires UseBlock first — same behavior, and swallow the click
         // so the brush never opens chests / presses buttons mid-stroke.
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            if (world.dimension() != FabricPlots.PLOTS_DIM || world.isClientSide()) return InteractionResult.PASS;
+            if (world.dimension() != FabricPlots.PLOTS_DIM) return InteractionResult.PASS;
             ItemStack held = player.getItemInHand(hand);
-            if (!isBrush(held) || !(player instanceof ServerPlayer sp)) return InteractionResult.PASS;
+            if (!isBrush(held)) return InteractionResult.PASS;
+            if (world.isClientSide() || !(player instanceof ServerPlayer sp)) return InteractionResult.SUCCESS;
             if (player.isShiftKeyDown()) PENDING_GUI.add(sp.getUUID()); else paint(sp, held);
             return InteractionResult.SUCCESS;
         });

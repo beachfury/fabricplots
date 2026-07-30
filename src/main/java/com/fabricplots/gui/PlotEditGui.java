@@ -74,7 +74,7 @@ public final class PlotEditGui {
                 .setName(Component.literal("Shapes…"))
                 .addLoreLine(Component.literal("Circle, square, sphere, cylinder, pyramid, line"))
                 .setCallback((i, t, a, g) -> PlotShapesGui.open(sp)).build());
-        gui.setSlot(20, new GuiElementBuilder(Items.STICK)
+        gui.setSlot(20, new GuiElementBuilder(Items.BRUSH)
                 .setName(Component.literal("Brushes…"))
                 .addLoreLine(Component.literal("Splatter, round, overlay, spray, erase — paint with a stick"))
                 .setCallback((i, t, a, g) -> PlotBrushGui.open(sp)).build());
