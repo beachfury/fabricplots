@@ -1,4 +1,9 @@
-package com.fabricplots;
+package com.fabricplots.protect;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.core.PlotConfig;
+import com.fabricplots.core.PlotData;
+import com.fabricplots.core.PlotManager;
 
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;

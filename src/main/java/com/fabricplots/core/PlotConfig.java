@@ -1,4 +1,4 @@
-package com.fabricplots;
+package com.fabricplots.core;
 
 /**
  * Tunables for the plot grid. A "cell" is one plot plus the road on its

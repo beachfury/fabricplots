@@ -1,4 +1,7 @@
-package com.fabricplots;
+package com.fabricplots.player;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.core.PlotsConfig;
 
 import eu.pb4.common.economy.api.CommonEconomy;
 import eu.pb4.common.economy.api.EconomyAccount;

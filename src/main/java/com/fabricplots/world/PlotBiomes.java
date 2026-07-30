@@ -1,4 +1,10 @@
-package com.fabricplots;
+package com.fabricplots.world;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.core.PlotConfig;
+import com.fabricplots.core.PlotData;
+import com.fabricplots.core.PlotPos;
+import com.fabricplots.protect.PlotMobGuard;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;

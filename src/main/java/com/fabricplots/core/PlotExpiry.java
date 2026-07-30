@@ -1,4 +1,8 @@
-package com.fabricplots;
+package com.fabricplots.core;
+
+import com.fabricplots.FabricPlots;
+import com.fabricplots.protect.PortalManager;
+import com.fabricplots.world.PlotBiomes;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
