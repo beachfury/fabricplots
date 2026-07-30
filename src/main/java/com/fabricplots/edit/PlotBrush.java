@@ -221,7 +221,10 @@ public final class PlotBrush {
                     BlockPos wp = start.relative(inward, k);
                     BlockState cur = level.getBlockState(wp);
                     if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
-                    addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, false);
+                    // a wall face is a face exposed to air on the side you aim at — the lawn in
+                    // front of the wall fails this test, so the ground never gets wall texture
+                    if (level.getBlockState(wp.relative(face)).isAir())
+                        addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, false);
                     break;
                 }
             }
@@ -291,14 +294,14 @@ public final class PlotBrush {
         }
     }
 
-    /** Blocks that should rest on the surface rather than replace it. */
+    /**
+     * Anything that is not a full cube rests ON the surface; full cubes replace it. Asked of the
+     * block itself (collision shape), so every block — vanilla or modded — sorts itself with no
+     * per-block list. Stairs are the one agreed exception: they sink into the ground.
+     */
     private static boolean sitsOnTop(BlockState s) {
-        Block b = s.getBlock();
-        return b instanceof net.minecraft.world.level.block.SlabBlock
-                || b instanceof net.minecraft.world.level.block.TrapDoorBlock
-                || b instanceof net.minecraft.world.level.block.CarpetBlock
-                || b instanceof net.minecraft.world.level.block.BasePressurePlateBlock
-                || b instanceof net.minecraft.world.level.block.SnowLayerBlock;
+        if (s.getBlock() instanceof net.minecraft.world.level.block.StairBlock) return false;
+        return !s.isCollisionShapeFullBlock(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
     }
 
     private static String brushVerb(Type t) {
