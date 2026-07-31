@@ -3,6 +3,7 @@ package com.fabricplots.gui;
 import com.fabricplots.compat.Compat;
 
 import com.fabricplots.edit.PlotEdit;
+import com.fabricplots.edit.PlotShapes;
 
 import eu.pb4.sgui.api.elements.GuiElement;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
@@ -83,7 +84,7 @@ public final class PlotEditGui {
                 .addLoreLine(Component.literal("Selection size, find center, measuring tape"))
                 .setCallback((i, t, a, g) -> PlotMeasureGui.open(sp)).build());
         gui.setSlot(24, btn(Items.GOLD_INGOT, "Find center of line",
-                (i, t, a, g) -> PlotEdit.findLineCenter(sp, level)));
+                (i, t, a, g) -> PlotShapes.findLineCenter(sp, level)));
         gui.setSlot(26, textureToggle(sp, () -> render(gui, sp)));
 
         // Row 4 — held-block indicator.
