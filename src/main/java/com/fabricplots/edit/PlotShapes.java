@@ -8,6 +8,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -101,7 +103,9 @@ public final class PlotShapes {
     }
 
     /**
-     * Build a parametric shape centered on the marker (or the player's feet if none is set).
+     * Build a parametric shape centered on the marker, or — with no marker set — on the block the
+     * player is AIMING at (like the paint brushes), falling back to their feet only when nothing is
+     * in range. Aiming keeps builders out of the middle of their own spheres.
      * Flat shapes (circle/square) extrude {@code height} layers up; repeat stacks copies with
      * {@code spacing} air between them. Hollow shells are {@code thickness} blocks thick.
      */
@@ -109,7 +113,14 @@ public final class PlotShapes {
                                  boolean hollow, int size, int height, int thickness, int repeat, int spacing) {
         if (shape == Shape.LINE) return line(sp, level, held, thickness);
         boolean admin = PlotProtection.isBuildAdmin(sp);
-        BlockPos base = SHAPE_CENTER.getOrDefault(sp.getUUID(), sp.blockPosition().immutable());
+        BlockPos base = SHAPE_CENTER.get(sp.getUUID());
+        if (base == null) {
+            // Same raycast the brushes use: center on the aimed block, feet only as a last resort.
+            HitResult hit = sp.pick(30, 0f, false);
+            base = hit.getType() == HitResult.Type.BLOCK
+                    ? ((BlockHitResult) hit).getBlockPos().immutable()
+                    : sp.blockPosition().immutable();
+        }
         clearShapeMarker(sp, level); // the marker's ground state must be what the shape replaces
         SHAPE_CENTER.remove(sp.getUUID());
 

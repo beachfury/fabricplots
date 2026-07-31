@@ -93,7 +93,7 @@ public final class PlotShapesGui {
                 .setName(Component.literal("Build " + (p.hollow ? "hollow " : "") + p.shape.name().toLowerCase()))
                 .addLoreLine(Component.literal(p.shape == PlotShapes.Shape.LINE
                         ? "Draws corner 1 → corner 2 with the held block"
-                        : "Builds on the gold marker (or your feet) with the held block"))
+                        : "Builds on the gold marker (or the block you're aiming at) with the held block"))
                 .setCallback((i, t, a, g) -> withBlock(sp, bs ->
                         PlotShapes.buildShape(sp, level, bs, p.shape, p.hollow, p.size, p.height, p.thickness, p.repeat, p.spacing)))
                 .build());
