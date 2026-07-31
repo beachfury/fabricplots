@@ -3,6 +3,52 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.4.0] — 2026-07-31
+
+The painting update.
+
+### Added
+- **Paint brushes.** `/plot brush` (or the editor hub) hands you a brush that paints strokes of blocks
+  wherever you aim, up to 30 blocks away. Sneak + right-click opens its settings screen, right-click
+  paints. Settings live **on the brush itself**, so every brush you carry is its own preset — set up a
+  grass-path brush, a stone-splatter brush and a terraform brush, name them at an anvil, and swap by
+  scrolling (renaming can't break them — the brush is identified by data, not its name).
+- **Eleven brush types.** **Splatter** (organic blotches), **Round** (solid circle), **Overlay** (drops
+  a carpet-like layer on top), **Spray** (scattered singles), **Wall** (paints vertical faces),
+  **Gradient**, **Blend**, **Raise**, **Lower**, **Smooth**, and **Erase**:
+  - **Gradient** paints your palette *in order* — concentric rings on the ground, bottom-to-top bands
+    on walls — with dithered edges between bands, for sunset walls and beach-to-water transitions.
+  - **Blend** re-rolls each block from what's already around it, smearing the boundary between two
+    materials until the seam disappears.
+  - **Raise / Lower / Smooth** terraform: pull the ground up, carve it down, or average the bumps out.
+  - **Erase** restores the plot floor — including custom floor blocks — and refills holes, so a
+    painted-over area goes back to a clean plot, not a crater.
+- **Brush dials.** **Size** (radius up to 15), **density** (how much of the area a stroke covers),
+  **fade** (edges thin out for natural blends), **Surface vs Ball mode** (paint the terrain's top layer,
+  or fill a full sphere in the air — Ball is how you paint floating clouds), and a **mask** ("paint over
+  only X") so a stroke only ever replaces the block you tell it to.
+- **9-slot palette with weighting.** Load up to nine blocks into the brush's palette; every painted
+  block rolls from them, and duplicates make a block proportionally more common — 3× grass + 1× moss
+  paints a mostly-grass mix.
+- **Placement that respects shape.** Painted **half-blocks** (slabs, carpets, pressure plates…) rest
+  *on top of* the ground while full blocks *replace* the surface — decided by actual collision shape,
+  so it works for modded blocks too (stairs sink flush by design). **Buttons and levers lie flat**
+  instead of clinging sideways. Splatter and spray are **capped at your aim height** and only land on
+  open surfaces, so repeated strokes never stack pillars upward. **Wall** only textures genuinely
+  exposed faces — no paint inside enclosed rooms.
+- **Particle previews.** Holding a brush shows a **particle ring** of its exact radius where you're
+  aiming, and holding the editor wand with both corners set draws a **green particle outline** around
+  your selection — see what you're about to affect before you commit.
+- **More measuring tapes.** You can now lay **up to 4 tapes at once** (box in a footprint!) — laying a
+  5th retires the oldest, and *tape clear* removes them all.
+- **Deeper undo.** The undo history holds **10 edits** (was 5) — brushes invite rapid strokes, and every
+  stroke is plot-jailed and lands as **one undo entry**, so `/plot undo` steps back stroke by stroke.
+- **New command:** `/plot brush`.
+
+### Changed
+- Internal: the code has been reorganized into packages with a version-compatibility layer — groundwork
+  for supporting more Minecraft versions cleanly.
+
 ## [0.3.0] — 2026-07-20
 
 The shapes update.
