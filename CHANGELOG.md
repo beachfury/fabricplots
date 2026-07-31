@@ -13,8 +13,8 @@ The painting update.
   paints. Settings live **on the brush itself**, so every brush you carry is its own preset — set up a
   grass-path brush, a stone-splatter brush and a terraform brush, name them at an anvil, and swap by
   scrolling (renaming can't break them — the brush is identified by data, not its name).
-- **Eleven brush types.** **Splatter** (organic blotches), **Round** (solid circle), **Overlay** (drops
-  a carpet-like layer on top), **Spray** (scattered singles), **Wall** (paints vertical faces),
+- **Eleven brush types.** **Splatter** (organic blotches), **Round** (solid circle), **Overlay** (repaints
+  the terrain's exposed top layer), **Spray** (scattered singles), **Wall** (paints vertical faces),
   **Gradient**, **Blend**, **Raise**, **Lower**, **Smooth**, and **Erase**:
   - **Gradient** paints your palette *in order* — concentric rings on the ground, bottom-to-top bands
     on walls — with dithered edges between bands, for sunset walls and beach-to-water transitions.
