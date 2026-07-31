@@ -175,8 +175,8 @@ public final class PlotWorldPainter {
                     // Merged cell core → reset the WHOLE column top-to-bottom (clears towers AND tunnels).
                     resetColumn(level, x, z, surfaceFor(merge));
                 } else {
-                    // Non-core: paintBase fills merged interior with grass, keeps perimeter as tuff/stair/road,
-                    // and leaves any neighbouring (non-merged) plot cores untouched.
+                    // Non-core: paintBase fills merged interior with the plot's floor block, keeps the
+                    // perimeter as tuff/stair/road, and leaves neighbouring (non-merged) plot cores untouched.
                     paintBase(x, z, setter, true);
                 }
             }
@@ -197,20 +197,33 @@ public final class PlotWorldPainter {
     }
 
     /**
-     * Repaint just the surface layer (GROUND_Y) of a plot's grass cores to the chosen floor block,
-     * leaving everything the owner built above it intact. Returns the number of columns painted.
+     * Repaint just the surface layer (GROUND_Y) of a plot's interior to the chosen floor block,
+     * leaving everything the owner built above it intact. Merge-aware: covers the cell cores AND a
+     * merged plot's dissolved road strips/corners (same ownership test as {@link #clearPlot}), so
+     * the old street line doesn't keep the previous floor. The sidewalk band (nearMergeEdge) keeps
+     * its sidewalk look. Returns the number of columns painted.
      */
     public static int applyFloor(ServerLevel level, PlotData data) {
+        if (data.cells.isEmpty()) return 0;
         BlockState surface = surfaceFor(data);
+        int pxMin = Integer.MAX_VALUE, pxMax = Integer.MIN_VALUE, pzMin = Integer.MAX_VALUE, pzMax = Integer.MIN_VALUE;
+        for (PlotPos c : data.cells) {
+            pxMin = Math.min(pxMin, c.px()); pxMax = Math.max(pxMax, c.px());
+            pzMin = Math.min(pzMin, c.pz()); pzMax = Math.max(pzMax, c.pz());
+        }
+        // Owned columns extend SIDEWALK_DEPTH beyond each cell core; merged gaps lie inside the box.
+        final int xStart = pxMin * PlotConfig.STEP - PlotConfig.SIDEWALK_DEPTH;
+        final int xEnd = pxMax * PlotConfig.STEP + PlotConfig.PLOT_SIZE + PlotConfig.SIDEWALK_DEPTH;
+        final int zStart = pzMin * PlotConfig.STEP - PlotConfig.SIDEWALK_DEPTH;
+        final int zEnd = pzMax * PlotConfig.STEP + PlotConfig.PLOT_SIZE + PlotConfig.SIDEWALK_DEPTH;
         int columns = 0;
-        for (PlotPos cell : data.cells) {
-            final int baseX = cell.px() * PlotConfig.STEP;
-            final int baseZ = cell.pz() * PlotConfig.STEP;
-            for (int dx = 0; dx < PlotConfig.PLOT_SIZE; dx++)
-                for (int dz = 0; dz < PlotConfig.PLOT_SIZE; dz++) {
-                    setIfDiff(level, baseX + dx, PlotConfig.GROUND_Y, baseZ + dz, surface);
-                    columns++;
-                }
+        for (int x = xStart; x <= xEnd; x++) {
+            for (int z = zStart; z <= zEnd; z++) {
+                if (PlotManager.owningPlot(x, z) != data) continue;  // other plots / roads untouched
+                if (PlotManager.nearMergeEdge(x, z)) continue;       // sidewalk band stays sidewalk
+                setIfDiff(level, x, PlotConfig.GROUND_Y, z, surface);
+                columns++;
+            }
         }
         return columns;
     }
@@ -375,11 +388,12 @@ public final class PlotWorldPainter {
         }
 
         // Buildable (a claimed cell's sidewalk, or a merge's dissolved interior): tuff sidewalk within
-        // SIDEWALK_DEPTH of the edge, grass deeper in. Perimeter stairs/road fall through to geometry below.
+        // SIDEWALK_DEPTH of the edge, the plot's floor block (grass by default) deeper in.
+        // Perimeter stairs/road fall through to geometry below.
         PlotData ownedBy = PlotManager.owningPlot(x, z);
         if (ownedBy != null) {
             setter.set(x, PlotConfig.ROAD_Y, z, FILL);
-            BlockState surf = GRASS;
+            BlockState surf = surfaceFor(ownedBy);
             if (PlotManager.nearMergeEdge(x, z)) {
                 BlockState patterned = PlotStyle.sidewalkState(ownedBy, x, z);
                 surf = patterned != null ? patterned : SIDEWALK;
