@@ -112,8 +112,14 @@ public final class PlotMobGuard {
             PlotData homePlot = PlotManager.owningPlot(home.getX(), home.getZ());
             if (homePlot == null) { HOME.remove(mob.getUUID()); continue; } // plot was deleted
             if (here != homePlot) {
-                mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
-                mob.getNavigation().stop();
+                // mob-escape-action config: teleport escapees home (default) or despawn them at
+                // the boundary. Named mobs never reach here — they're exempt from the sweep.
+                if (com.fabricplots.core.PlotsConfig.mobEscapeDespawn) {
+                    mob.discard();
+                } else {
+                    mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+                    mob.getNavigation().stop();
+                }
             }
         }
         HOME.keySet().retainAll(seen);
