@@ -5,6 +5,7 @@ import com.fabricplots.edit.PlotEdit;
 import com.fabricplots.edit.PlotMeasure;
 import com.fabricplots.edit.PlotShapes;
 import com.fabricplots.gui.PlotEditGui;
+import com.fabricplots.gui.PlotMeasureGui;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -37,6 +38,7 @@ final class EditCommands {
                                 .then(Commands.argument("to", BlockStateArgument.block(bc))
                                         .executes(EditCommands::replaceBlocks))))
                 .then(Commands.literal("edit").executes(EditCommands::editGui))
+                .then(Commands.literal("measure").executes(EditCommands::measureGui))
                 .then(Commands.literal("undo").executes(EditCommands::undoEdit))
                 .then(Commands.literal("redo").executes(EditCommands::redoEdit))
                 .then(Commands.literal("copy").executes(EditCommands::copyEdit))
@@ -160,6 +162,15 @@ final class EditCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { PlotCommands.msg(ctx, "Open the editor in the plot world."); return 0; }
             PlotEditGui.open(p);
+            return 1;
+        } catch (Exception e) { return PlotCommands.err(ctx, e); }
+    }
+
+    private static int measureGui(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { PlotCommands.msg(ctx, "Open the measuring tools in the plot world."); return 0; }
+            PlotMeasureGui.open(p);
             return 1;
         } catch (Exception e) { return PlotCommands.err(ctx, e); }
     }
