@@ -55,8 +55,15 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   sphere, cylinder, pyramid, and a 3D diagonal **line tool**, each filled or hollow (ring / frame /
   shell / tube), with size (up to 256), height, thickness, and repeat×spacing dials, built on a
   self-cleaning **gold center marker** that shows exactly where the shape will land. **Measure**: a live
-  *W × H × L* selection readout, **find the center** of any corner-to-corner line (`/plot center`), and a
-  temporary yellow/black **measuring tape** with glowing numbered signs (`/plot tape`).
+  *W × H × L* selection readout, **find the center** of any corner-to-corner line (`/plot center`), and
+  temporary yellow/black **measuring tapes** with glowing numbered signs — up to 4 at once (`/plot tape`).
+- **Paint brushes** — `/plot brush` gives a configurable brush that paints strokes of blocks where you aim:
+  11 types (**Splatter, Round, Overlay, Spray, Wall, Gradient, Blend, Raise, Lower, Smooth, Erase**) with
+  size/density/fade dials, Surface vs Ball mode, a "paint over only X" mask, and a 9-slot weighted palette.
+  Settings are stored **on the brush item**, so each brush is its own preset (anvil-rename safe). Half-blocks
+  rest on top of the ground, full blocks replace it; Erase restores the plot floor (custom floors included).
+  Every stroke is plot-jailed and undoable. **Particle previews** show the brush radius as a ring while you
+  hold a brush, and a green outline around your wand selection.
 - **Random texture mode** — toggle it on and every edit *and every block you place by hand* mixes all
   the blocks in your hotbar randomly: lay natural-looking paths without ever scrolling. Duplicate slots
   weight the mix; in survival the cost comes from the stack that actually got placed.
