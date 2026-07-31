@@ -47,6 +47,7 @@ public final class PlotsConfig {
     public static volatile boolean refundOnDelete = false;    // refund part of the cost on /plot delete
     public static volatile int refundPercent = 50;            // how much of the paid amount to refund
     public static volatile String economyCurrencyId = "";     // currency id (blank = the provider's default)
+    public static volatile boolean mobEscapeDespawn = false;  // "mob-escape-action": teleport (default) or despawn
 
     private static Path file;
 
@@ -66,6 +67,7 @@ public final class PlotsConfig {
         welcomeMessage       = bool(p, "welcome-message", welcomeMessage);
         unnamedMobGraceTicks = inted(p, "unnamed-mob-grace-ticks", unnamedMobGraceTicks);
         mobScanIntervalTicks = inted(p, "mob-scan-interval-ticks", mobScanIntervalTicks);
+        mobEscapeDespawn = "despawn".equalsIgnoreCase(p.getProperty("mob-escape-action", mobEscapeDespawn ? "despawn" : "teleport").trim());
         portalStreetSpacing = Math.max(1, inted(p, "portal-street-spacing", portalStreetSpacing));
         advanceTime = bool(p, "advance-time", advanceTime);
         advanceWeather = bool(p, "advance-weather", advanceWeather);
