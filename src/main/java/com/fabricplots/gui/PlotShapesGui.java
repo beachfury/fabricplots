@@ -1,6 +1,7 @@
 package com.fabricplots.gui;
 
 import com.fabricplots.edit.PlotEdit;
+import com.fabricplots.edit.PlotShapes;
 
 import eu.pb4.sgui.api.elements.GuiElement;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
@@ -26,7 +27,7 @@ public final class PlotShapesGui {
 
     /** Per-player shape parameters (session-only). */
     private static final class Params {
-        PlotEdit.Shape shape = PlotEdit.Shape.CIRCLE;
+        PlotShapes.Shape shape = PlotShapes.Shape.CIRCLE;
         boolean hollow = false;
         int size = 7;       // diameter / side length
         int height = 1;     // extrusion for circle/square, height for cylinder
@@ -55,12 +56,12 @@ public final class PlotShapesGui {
         for (int i = 0; i < 54; i++) gui.setSlot(i, PlotEditGui.filler());
 
         // Row 1 — pick a shape.
-        shapeBtn(gui, sp, 0, Items.SNOWBALL, PlotEdit.Shape.CIRCLE, "Circle", "Flat disc — hollow = ring");
-        shapeBtn(gui, sp, 1, Items.SMOOTH_STONE, PlotEdit.Shape.SQUARE, "Square", "Flat square — hollow = frame");
-        shapeBtn(gui, sp, 2, Items.ENDER_PEARL, PlotEdit.Shape.SPHERE, "Sphere", "Full ball — hollow = shell");
-        shapeBtn(gui, sp, 3, Items.BAMBOO, PlotEdit.Shape.CYLINDER, "Cylinder", "Round tower — hollow = tube");
-        shapeBtn(gui, sp, 4, Items.SANDSTONE, PlotEdit.Shape.PYRAMID, "Pyramid", "Steps in by 1 each layer — hollow = frame layers");
-        shapeBtn(gui, sp, 5, Items.BLAZE_ROD, PlotEdit.Shape.LINE, "Line", "Corner 1 → corner 2, any diagonal. Thickness = beam");
+        shapeBtn(gui, sp, 0, Items.SNOWBALL, PlotShapes.Shape.CIRCLE, "Circle", "Flat disc — hollow = ring");
+        shapeBtn(gui, sp, 1, Items.SMOOTH_STONE, PlotShapes.Shape.SQUARE, "Square", "Flat square — hollow = frame");
+        shapeBtn(gui, sp, 2, Items.ENDER_PEARL, PlotShapes.Shape.SPHERE, "Sphere", "Full ball — hollow = shell");
+        shapeBtn(gui, sp, 3, Items.BAMBOO, PlotShapes.Shape.CYLINDER, "Cylinder", "Round tower — hollow = tube");
+        shapeBtn(gui, sp, 4, Items.SANDSTONE, PlotShapes.Shape.PYRAMID, "Pyramid", "Steps in by 1 each layer — hollow = frame layers");
+        shapeBtn(gui, sp, 5, Items.BLAZE_ROD, PlotShapes.Shape.LINE, "Line", "Corner 1 → corner 2, any diagonal. Thickness = beam");
 
         // Style toggle.
         gui.setSlot(7, new GuiElementBuilder(p.hollow ? Items.GLASS : Items.STONE_BRICKS)
@@ -85,16 +86,16 @@ public final class PlotShapesGui {
                 .setName(Component.literal("Set center (at your feet)"))
                 .addLoreLine(Component.literal("Odd size = 1 gold block, even size = 2x2"))
                 .addLoreLine(Component.literal("The marker restores the ground when you build"))
-                .setCallback((i, t, a, g) -> PlotEdit.setShapeCenter(sp, level, p.size % 2 == 0)).build());
+                .setCallback((i, t, a, g) -> PlotShapes.setShapeCenter(sp, level, p.size % 2 == 0)).build());
         gui.setSlot(29, btn(Items.BARRIER, "Clear center marker",
-                (i, t, a, g) -> PlotEdit.clearShapeMarker(sp, level)));
+                (i, t, a, g) -> PlotShapes.clearShapeMarker(sp, level)));
         gui.setSlot(31, new GuiElementBuilder(Items.EMERALD_BLOCK)
                 .setName(Component.literal("Build " + (p.hollow ? "hollow " : "") + p.shape.name().toLowerCase()))
-                .addLoreLine(Component.literal(p.shape == PlotEdit.Shape.LINE
+                .addLoreLine(Component.literal(p.shape == PlotShapes.Shape.LINE
                         ? "Draws corner 1 → corner 2 with the held block"
                         : "Builds on the gold marker (or your feet) with the held block"))
                 .setCallback((i, t, a, g) -> withBlock(sp, bs ->
-                        PlotEdit.buildShape(sp, level, bs, p.shape, p.hollow, p.size, p.height, p.thickness, p.repeat, p.spacing)))
+                        PlotShapes.buildShape(sp, level, bs, p.shape, p.hollow, p.size, p.height, p.thickness, p.repeat, p.spacing)))
                 .build());
         gui.setSlot(33, PlotEditGui.textureToggle(sp, () -> render(gui, sp)));
         gui.setSlot(35, btn(Items.CLOCK, "Undo last edit", (i, t, a, g) -> PlotEdit.undo(sp, level)));
@@ -107,7 +108,7 @@ public final class PlotShapesGui {
     }
 
     private static void shapeBtn(SimpleGui gui, ServerPlayer sp, int slot, Item icon,
-                                 PlotEdit.Shape shape, String name, String lore) {
+                                 PlotShapes.Shape shape, String name, String lore) {
         Params p = params(sp.getUUID());
         boolean sel = p.shape == shape;
         gui.setSlot(slot, new GuiElementBuilder(icon)

@@ -1,6 +1,8 @@
 package com.fabricplots.gui;
 
 import com.fabricplots.edit.PlotEdit;
+import com.fabricplots.edit.PlotMeasure;
+import com.fabricplots.edit.PlotShapes;
 
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
@@ -36,7 +38,7 @@ public final class PlotMeasureGui {
                 (i, t, a, g) -> { PlotEdit.setPos1(sp); render(gui, sp); }));
         gui.setSlot(1, PlotEditGui.btn(Items.WOODEN_AXE, "Set corner 2 (here)",
                 (i, t, a, g) -> { PlotEdit.setPos2(sp); render(gui, sp); }));
-        String info = PlotEdit.selectionInfo(sp);
+        String info = PlotMeasure.selectionInfo(sp);
         gui.setSlot(4, new GuiElementBuilder(info != null ? Items.MAP : Items.PAPER)
                 .setName(Component.literal(info != null ? "Selection: " + info : "No selection yet"))
                 .addLoreLine(Component.literal(info != null
@@ -50,16 +52,16 @@ public final class PlotMeasureGui {
                 .addLoreLine(Component.literal("Marks the middle of corner 1 → corner 2 with gold"))
                 .addLoreLine(Component.literal("Odd length = 1 block, even = the middle 2"))
                 .addLoreLine(Component.literal("Doubles as the shape center — build right on it"))
-                .setCallback((i, t, a, g) -> PlotEdit.findLineCenter(sp, level)).build());
+                .setCallback((i, t, a, g) -> PlotShapes.findLineCenter(sp, level)).build());
         gui.setSlot(12, new GuiElementBuilder(Items.OAK_SIGN)
                 .setName(Component.literal("Measuring tape"))
                 .addLoreLine(Component.literal("Yellow/black stripes corner 1 → corner 2 (straight runs)"))
                 .addLoreLine(Component.literal("Counts from 1; numbered signs every 2, 5, or 10"))
-                .setCallback((i, t, a, g) -> PlotEdit.tape(sp, level)).build());
+                .setCallback((i, t, a, g) -> PlotMeasure.tape(sp, level)).build());
         gui.setSlot(14, new GuiElementBuilder(Items.BARRIER)
                 .setName(Component.literal("Clear measuring tape"))
                 .addLoreLine(Component.literal("Puts back exactly what the tape covered"))
-                .setCallback((i, t, a, g) -> PlotEdit.clearTape(sp, level)).build());
+                .setCallback((i, t, a, g) -> PlotMeasure.clearTape(sp, level)).build());
 
         // Row 3 — back.
         gui.setSlot(18, PlotEditGui.btn(Items.ARROW, "Back to editor", (i, t, a, g) -> PlotEditGui.open(sp)));

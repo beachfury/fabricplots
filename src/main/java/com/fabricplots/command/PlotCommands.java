@@ -8,6 +8,8 @@ import com.fabricplots.core.PlotManager;
 import com.fabricplots.core.PlotPos;
 import com.fabricplots.core.PlotsConfig;
 import com.fabricplots.edit.PlotEdit;
+import com.fabricplots.edit.PlotMeasure;
+import com.fabricplots.edit.PlotShapes;
 import com.fabricplots.gui.PlotEditGui;
 import com.fabricplots.gui.PlotMenus;
 import com.fabricplots.player.PlotEconomy;
@@ -141,16 +143,16 @@ public final class PlotCommands {
                 .then(Commands.literal("disc")
                         .then(Commands.argument("block", BlockStateArgument.block(bc))
                                 .then(Commands.argument("size", IntegerArgumentType.integer(1, 256))
-                                        .executes(ctx -> shapeEdit(ctx, PlotEdit.Shape.CIRCLE, false, 1))
+                                        .executes(ctx -> shapeEdit(ctx, PlotShapes.Shape.CIRCLE, false, 1))
                                         .then(Commands.argument("height", IntegerArgumentType.integer(1, 128))
-                                                .executes(ctx -> shapeEdit(ctx, PlotEdit.Shape.CIRCLE, false,
+                                                .executes(ctx -> shapeEdit(ctx, PlotShapes.Shape.CIRCLE, false,
                                                         IntegerArgumentType.getInteger(ctx, "height")))))))
                 .then(Commands.literal("ring")
                         .then(Commands.argument("block", BlockStateArgument.block(bc))
                                 .then(Commands.argument("size", IntegerArgumentType.integer(1, 256))
-                                        .executes(ctx -> shapeEdit(ctx, PlotEdit.Shape.CIRCLE, true, 1))
+                                        .executes(ctx -> shapeEdit(ctx, PlotShapes.Shape.CIRCLE, true, 1))
                                         .then(Commands.argument("height", IntegerArgumentType.integer(1, 128))
-                                                .executes(ctx -> shapeEdit(ctx, PlotEdit.Shape.CIRCLE, true,
+                                                .executes(ctx -> shapeEdit(ctx, PlotShapes.Shape.CIRCLE, true,
                                                         IntegerArgumentType.getInteger(ctx, "height")))))))
                 .then(Commands.literal("line")
                         .then(Commands.argument("block", BlockStateArgument.block(bc))
@@ -522,12 +524,12 @@ public final class PlotCommands {
         } catch (Exception e) { return err(ctx, e); }
     }
 
-    private static int shapeEdit(CommandContext<CommandSourceStack> ctx, PlotEdit.Shape shape, boolean hollow, int height) {
+    private static int shapeEdit(CommandContext<CommandSourceStack> ctx, PlotShapes.Shape shape, boolean hollow, int height) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
             int size = IntegerArgumentType.getInteger(ctx, "size");
-            return PlotEdit.buildShape(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(),
+            return PlotShapes.buildShape(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(),
                     shape, hollow, size, height, 1, 1, 0);
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -536,7 +538,7 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.line(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(), thickness);
+            return PlotShapes.line(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(), thickness);
         } catch (Exception e) { return err(ctx, e); }
     }
 
@@ -544,7 +546,7 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.findLineCenter(p, plotsLevel(ctx));
+            return PlotShapes.findLineCenter(p, plotsLevel(ctx));
         } catch (Exception e) { return err(ctx, e); }
     }
 
@@ -552,7 +554,7 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.tape(p, plotsLevel(ctx));
+            return PlotMeasure.tape(p, plotsLevel(ctx));
         } catch (Exception e) { return err(ctx, e); }
     }
 
@@ -560,7 +562,7 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            PlotEdit.clearTape(p, plotsLevel(ctx));
+            PlotMeasure.clearTape(p, plotsLevel(ctx));
             msg(ctx, "Measuring tape cleared.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
