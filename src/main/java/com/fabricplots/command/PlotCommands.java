@@ -7,10 +7,6 @@ import com.fabricplots.core.PlotData;
 import com.fabricplots.core.PlotManager;
 import com.fabricplots.core.PlotPos;
 import com.fabricplots.core.PlotsConfig;
-import com.fabricplots.edit.PlotEdit;
-import com.fabricplots.edit.PlotMeasure;
-import com.fabricplots.edit.PlotShapes;
-import com.fabricplots.gui.PlotEditGui;
 import com.fabricplots.gui.PlotMenus;
 import com.fabricplots.player.PlotEconomy;
 import com.fabricplots.protect.PlotProtection;
@@ -21,13 +17,13 @@ import com.fabricplots.world.PlotWorldPainter;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.GameProfileArgument;
-import net.minecraft.commands.arguments.blocks.BlockStateArgument;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.ClickEvent;
@@ -48,7 +44,7 @@ public final class PlotCommands {
     private PlotCommands() {}
 
     public static void register(CommandDispatcher<CommandSourceStack> d, CommandBuildContext bc) {
-        d.register(Commands.literal("plot")
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("plot")
                 .executes(PlotCommands::help)
                 .then(Commands.literal("help").executes(PlotCommands::help))
                 .then(Commands.literal("world").executes(PlotCommands::world))
@@ -97,72 +93,9 @@ public final class PlotCommands {
                 .then(Commands.literal("removeall")
                         .then(Commands.argument("player", GameProfileArgument.gameProfile())
                                 .executes(PlotCommands::removeAll)))
-                .then(Commands.literal("editwand").executes(PlotCommands::editwand))
-                .then(Commands.literal("brush").executes(PlotCommands::brush))
-                .then(Commands.literal("pos1").executes(PlotCommands::pos1))
-                .then(Commands.literal("pos2").executes(PlotCommands::pos2))
-                .then(Commands.literal("set")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .executes(PlotCommands::setBlocks)))
-                .then(Commands.literal("replace")
-                        .then(Commands.argument("from", BlockStateArgument.block(bc))
-                                .then(Commands.argument("to", BlockStateArgument.block(bc))
-                                        .executes(PlotCommands::replaceBlocks))))
                 .then(Commands.literal("menu").executes(PlotCommands::menu))
                 .then(Commands.literal("list").executes(PlotCommands::listPlots))
-                .then(Commands.literal("edit").executes(PlotCommands::editGui))
-                .then(Commands.literal("undo").executes(PlotCommands::undoEdit))
-                .then(Commands.literal("redo").executes(PlotCommands::redoEdit))
                 .then(Commands.literal("sethome").executes(PlotCommands::setHome))
-                .then(Commands.literal("copy").executes(PlotCommands::copyEdit))
-                .then(Commands.literal("cut").executes(PlotCommands::cutEdit))
-                .then(Commands.literal("paste").executes(PlotCommands::pasteEdit))
-                .then(Commands.literal("stack")
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                .executes(ctx -> stackEdit(ctx, IntegerArgumentType.getInteger(ctx, "count")))))
-                .then(Commands.literal("move")
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 256))
-                                .executes(ctx -> moveEdit(ctx, IntegerArgumentType.getInteger(ctx, "count")))))
-                .then(Commands.literal("walls")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .executes(PlotCommands::wallsEdit)))
-                .then(Commands.literal("sphere")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
-                                        .executes(ctx -> sphereEdit(ctx, false)))))
-                .then(Commands.literal("hsphere")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
-                                        .executes(ctx -> sphereEdit(ctx, true)))))
-                .then(Commands.literal("cyl")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 32))
-                                        .executes(ctx -> cylEdit(ctx, 1))
-                                        .then(Commands.argument("height", IntegerArgumentType.integer(1, 256))
-                                                .executes(ctx -> cylEdit(ctx, IntegerArgumentType.getInteger(ctx, "height")))))))
-                .then(Commands.literal("disc")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("size", IntegerArgumentType.integer(1, 256))
-                                        .executes(ctx -> shapeEdit(ctx, PlotShapes.Shape.CIRCLE, false, 1))
-                                        .then(Commands.argument("height", IntegerArgumentType.integer(1, 128))
-                                                .executes(ctx -> shapeEdit(ctx, PlotShapes.Shape.CIRCLE, false,
-                                                        IntegerArgumentType.getInteger(ctx, "height")))))))
-                .then(Commands.literal("ring")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .then(Commands.argument("size", IntegerArgumentType.integer(1, 256))
-                                        .executes(ctx -> shapeEdit(ctx, PlotShapes.Shape.CIRCLE, true, 1))
-                                        .then(Commands.argument("height", IntegerArgumentType.integer(1, 128))
-                                                .executes(ctx -> shapeEdit(ctx, PlotShapes.Shape.CIRCLE, true,
-                                                        IntegerArgumentType.getInteger(ctx, "height")))))))
-                .then(Commands.literal("line")
-                        .then(Commands.argument("block", BlockStateArgument.block(bc))
-                                .executes(ctx -> lineEdit(ctx, 1))
-                                .then(Commands.argument("thickness", IntegerArgumentType.integer(1, 8))
-                                        .executes(ctx -> lineEdit(ctx, IntegerArgumentType.getInteger(ctx, "thickness"))))))
-                .then(Commands.literal("center").executes(PlotCommands::centerEdit))
-                .then(Commands.literal("tape")
-                        .executes(PlotCommands::tapeEdit)
-                        .then(Commands.literal("clear").executes(PlotCommands::tapeClear)))
                 .then(Commands.literal("admin").executes(PlotCommands::adminMode))
                 .then(Commands.literal("setspawn").executes(PlotCommands::setSpawn))
                 .then(Commands.literal("reload").executes(PlotCommands::reload))
@@ -171,7 +104,9 @@ public final class PlotCommands {
                 .then(Commands.literal("setowner")
                         .then(Commands.argument("player", GameProfileArgument.gameProfile())
                                 .executes(PlotCommands::setOwner)))
-                .then(Commands.literal("version").executes(PlotCommands::version)));
+                .then(Commands.literal("version").executes(PlotCommands::version));
+        EditCommands.attach(root, bc); // editwand … tape — the editor subcommands (EditCommands.java)
+        d.register(root);
 
         // Convenience alias; becomes the clickable sgui menu in v1.1.
         d.register(Commands.literal("plots").executes(PlotCommands::home));
@@ -302,69 +237,6 @@ public final class PlotCommands {
         } catch (Exception e) { return err(ctx, e); }
     }
 
-    private static int brush(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            p.getInventory().placeItemBackInInventory(com.fabricplots.edit.PlotBrush.createBrush());
-            msg(ctx, "Paint brush added. Sneak + right-click to configure it, right-click to paint.");
-            return 1;
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int editwand(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            p.addItem(PlotEdit.createWand());
-            msg(ctx, "Editor wand given. Right-click a block for corner 1, right-click again for corner 2 (or use /plot pos1 · /plot pos2). Then /plot set <block> or /plot replace <from> <to>.");
-            return 1;
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int pos1(CommandContext<CommandSourceStack> ctx) {
-        try { PlotEdit.setPos1(ctx.getSource().getPlayerOrException()); return 1; }
-        catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int pos2(CommandContext<CommandSourceStack> ctx) {
-        try { PlotEdit.setPos2(ctx.getSource().getPlayerOrException()); return 1; }
-        catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int setBlocks(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            var block = BlockStateArgument.getBlock(ctx, "block");
-            return PlotEdit.set(p, plotsLevel(ctx), block.getState());
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int replaceBlocks(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            var from = BlockStateArgument.getBlock(ctx, "from");
-            var to = BlockStateArgument.getBlock(ctx, "to");
-            return PlotEdit.replace(p, plotsLevel(ctx), from, to.getState());
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int undoEdit(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.undo(p, plotsLevel(ctx));
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int redoEdit(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.redo(p, plotsLevel(ctx));
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
     private static int setHome(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
@@ -486,125 +358,6 @@ public final class PlotCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             PlotMenus.myPlots(p, 0); // opens from anywhere
             return 1;
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int editGui(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Open the editor in the plot world."); return 0; }
-            PlotEditGui.open(p);
-            return 1;
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int wallsEdit(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.walls(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState());
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int sphereEdit(CommandContext<CommandSourceStack> ctx, boolean hollow) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            int r = IntegerArgumentType.getInteger(ctx, "radius");
-            return PlotEdit.sphere(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(), r, hollow);
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int cylEdit(CommandContext<CommandSourceStack> ctx, int height) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            int r = IntegerArgumentType.getInteger(ctx, "radius");
-            return PlotEdit.cylinder(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(), r, height);
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int shapeEdit(CommandContext<CommandSourceStack> ctx, PlotShapes.Shape shape, boolean hollow, int height) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            int size = IntegerArgumentType.getInteger(ctx, "size");
-            return PlotShapes.buildShape(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(),
-                    shape, hollow, size, height, 1, 1, 0);
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int lineEdit(CommandContext<CommandSourceStack> ctx, int thickness) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotShapes.line(p, plotsLevel(ctx), BlockStateArgument.getBlock(ctx, "block").getState(), thickness);
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int centerEdit(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotShapes.findLineCenter(p, plotsLevel(ctx));
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int tapeEdit(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotMeasure.tape(p, plotsLevel(ctx));
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int tapeClear(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            PlotMeasure.clearTape(p, plotsLevel(ctx));
-            msg(ctx, "Measuring tape cleared.");
-            return 1;
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int copyEdit(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.copy(p, plotsLevel(ctx));
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int cutEdit(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.cut(p, plotsLevel(ctx));
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int pasteEdit(CommandContext<CommandSourceStack> ctx) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.paste(p, plotsLevel(ctx));
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int stackEdit(CommandContext<CommandSourceStack> ctx, int count) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.stack(p, plotsLevel(ctx), count);
-        } catch (Exception e) { return err(ctx, e); }
-    }
-
-    private static int moveEdit(CommandContext<CommandSourceStack> ctx, int count) {
-        try {
-            ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
-            return PlotEdit.move(p, plotsLevel(ctx), count);
         } catch (Exception e) { return err(ctx, e); }
     }
 
@@ -982,7 +735,7 @@ public final class PlotCommands {
 
     // ---- helpers ---------------------------------------------------------
 
-    private static ServerLevel plotsLevel(CommandContext<CommandSourceStack> ctx) {
+    static ServerLevel plotsLevel(CommandContext<CommandSourceStack> ctx) { // package-private: EditCommands uses it too
         ServerLevel level = ctx.getSource().getServer().getLevel(FabricPlots.PLOTS_DIM);
         if (level == null) throw new IllegalStateException("Plots dimension not loaded (fabricplots:plots).");
         return level;
@@ -1048,11 +801,11 @@ public final class PlotCommands {
         return sp != null ? sp.getName().getString() : id.toString().substring(0, 8);
     }
 
-    private static void msg(CommandContext<CommandSourceStack> ctx, String text) {
+    static void msg(CommandContext<CommandSourceStack> ctx, String text) { // package-private: EditCommands uses it too
         ctx.getSource().sendSuccess(() -> Component.literal("[Plots] " + text), false);
     }
 
-    private static int err(CommandContext<CommandSourceStack> ctx, Exception e) {
+    static int err(CommandContext<CommandSourceStack> ctx, Exception e) { // package-private: EditCommands uses it too
         ctx.getSource().sendFailure(Component.literal("[Plots] Error: " + e.getMessage()));
         return 0;
     }
