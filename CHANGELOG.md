@@ -44,6 +44,8 @@ The painting update.
 - **Deeper undo.** The undo history holds **10 edits** (was 5) — brushes invite rapid strokes, and every
   stroke is plot-jailed and lands as **one undo entry**, so `/plot undo` steps back stroke by stroke.
 - **New commands:** `/plot brush`, and `/plot measure` opens the measuring-tools screen directly.
+- **New config: `mob-escape-action`.** `teleport` (default) returns a plot's escaped mobs back home;
+  `despawn` removes them at the boundary instead. Named mobs are always safe either way.
 
 ### Changed
 - **Shapes build where you aim.** With no gold marker set, a shape centers on the block you're looking
