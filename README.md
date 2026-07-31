@@ -51,7 +51,8 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   block written is ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing
   risk, no WorldEdit region setup.
 - **Editor hub with Shapes & Measure screens** — `/plot edit` opens a quick-bar hub (corners, clipboard,
-  fill/walls, stack/move, undo/redo) with doors into two dedicated screens. **Shapes**: circle, square,
+  fill/walls, stack/move, undo/redo) with doors into two dedicated screens (`/plot measure` jumps
+  straight to the measuring tools). **Shapes**: circle, square,
   sphere, cylinder, pyramid, and a 3D diagonal **line tool**, each filled or hollow (ring / frame /
   shell / tube), with size (up to 256), height, thickness, and repeat×spacing dials, built on a
   self-cleaning **gold center marker** that shows exactly where the shape will land. **Measure**: a live

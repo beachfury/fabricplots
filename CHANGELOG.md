@@ -43,11 +43,22 @@ The painting update.
   5th retires the oldest, and *tape clear* removes them all.
 - **Deeper undo.** The undo history holds **10 edits** (was 5) — brushes invite rapid strokes, and every
   stroke is plot-jailed and lands as **one undo entry**, so `/plot undo` steps back stroke by stroke.
-- **New command:** `/plot brush`.
+- **New commands:** `/plot brush`, and `/plot measure` opens the measuring-tools screen directly.
 
 ### Changed
+- **Shapes build where you aim.** With no gold marker set, a shape centers on the block you're looking
+  at (up to 30 blocks away, like the brushes) instead of your feet — no more sealing yourself inside
+  your own sphere. The gold marker still takes priority; feet are the fallback when nothing is in range.
+- **Paste lands where you aim.** `/plot paste` places the clipboard at the block you're looking at
+  (as if you stood on it) — stand-and-paste still works when you aren't aiming at anything.
 - Internal: the code has been reorganized into packages with a version-compatibility layer — groundwork
   for supporting more Minecraft versions cleanly.
+
+### Fixed
+- **Merged plots repaint their whole interior on a floor change.** Changing the plot floor now also
+  repaints the dissolved street strips and corners between a merge's cells — the old road line no
+  longer shows through — and merge/road repaints use the plot's chosen floor block instead of always
+  grass.
 
 ## [0.3.0] — 2026-07-20
 
