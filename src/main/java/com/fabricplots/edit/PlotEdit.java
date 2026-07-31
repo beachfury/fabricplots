@@ -275,7 +275,7 @@ public final class PlotEdit {
     public static int copy(ServerPlayer sp, ServerLevel level) {
         int n = doCopy(sp, level);
         if (n < 0) return 0;
-        msg(sp, "Copied " + n + " blocks. Stand where you want it and /plot paste.");
+        msg(sp, "Copied " + n + " blocks. Aim (or stand) where you want it and /plot paste.");
         return 1;
     }
 
@@ -309,7 +309,13 @@ public final class PlotEdit {
         List<ClipBlock> clip = CLIPBOARD.get(sp.getUUID());
         if (clip == null || clip.isEmpty()) { msg(sp, "Nothing to paste — /plot copy first."); return 0; }
         boolean admin = PlotProtection.isBuildAdmin(sp);
+        // Land the paste where the player is AIMING (same raycast as the brushes) — one above the
+        // hit block, so aiming at the ground behaves exactly like standing there. No block in range
+        // falls back to the old behavior: paste at your feet.
         BlockPos origin = sp.blockPosition();
+        net.minecraft.world.phys.HitResult hit = sp.pick(30, 0f, false);
+        if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK)
+            origin = ((net.minecraft.world.phys.BlockHitResult) hit).getBlockPos().above();
         List<Write> writes = new ArrayList<>();
         int skipped = 0;
         for (ClipBlock c : clip) {

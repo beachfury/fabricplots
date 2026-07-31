@@ -283,6 +283,7 @@ public final class PlotCommands {
 
         section(src, "Building");
         line(src, "/plot edit", "open the build GUI");
+        line(src, "/plot measure", "open the measuring tools");
         line(src, "/plot editwand", "get the selection wand");
         line(src, "/plot brush", "get a paint brush (sneak-click to configure)");
         line(src, "/plot pos1", "set selection corner 1");
