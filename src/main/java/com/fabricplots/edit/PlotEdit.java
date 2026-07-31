@@ -15,12 +15,14 @@ import net.minecraft.commands.arguments.blocks.BlockInput;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -45,6 +47,7 @@ import java.util.function.BiPredicate;
  */
 public final class PlotEdit {
     private static final String WAND_NAME = "plot_editor";
+    private static final String WAND_TAG = "fabricplots_wand"; // custom-data marker — survives anvil renames
     private static final net.minecraft.world.item.Item WAND_ITEM = Items.WOODEN_AXE;
     private static final int MAX_BLOCKS = 65536;   // per edit — keeps a single op from freezing the server
     private static final int UNDO_DEPTH = 10; // brushes invite rapid strokes       // edits kept per player
@@ -74,12 +77,18 @@ public final class PlotEdit {
     public static ItemStack createWand() {
         ItemStack s = new ItemStack(WAND_ITEM);
         s.set(DataComponents.CUSTOM_NAME, Component.literal(WAND_NAME));
+        // Data marker (same scheme as PlotBrush) so an anvil rename can't break the wand.
+        CompoundTag root = new CompoundTag();
+        root.put(WAND_TAG, new CompoundTag());
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
         return s;
     }
 
     public static boolean isWand(ItemStack s) {
         if (s.isEmpty() || s.getItem() != WAND_ITEM) return false;
-        Component n = s.get(DataComponents.CUSTOM_NAME);
+        CustomData d = s.get(DataComponents.CUSTOM_DATA);
+        if (d != null && d.copyTag().contains(WAND_TAG)) return true;
+        Component n = s.get(DataComponents.CUSTOM_NAME); // legacy wands (pre-0.4.0) carry only the name
         return n != null && WAND_NAME.equals(n.getString());
     }
 
