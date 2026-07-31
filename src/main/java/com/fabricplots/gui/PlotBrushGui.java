@@ -50,14 +50,19 @@ public final class PlotBrushGui {
         }
         PlotBrush.Config c = PlotBrush.read(stick);
 
-        // Row 1 — brush type + surface toggle.
+        // Rows 1-2 — brush types.
         typeBtn(gui, sp, stick, 0, Items.GRAVEL, PlotBrush.Type.SPLATTER, "Splatter", "Scattered random blocks — the path maker");
         typeBtn(gui, sp, stick, 1, Items.SNOWBALL, PlotBrush.Type.ROUND, "Round", "Solid stamp — disc on surface, ball in air mode");
         typeBtn(gui, sp, stick, 2, Items.GRASS_BLOCK, PlotBrush.Type.OVERLAY, "Overlay", "Repaints the exposed surface only (always surface mode)");
         typeBtn(gui, sp, stick, 3, Items.SUGAR, PlotBrush.Type.SPRAY, "Spray", "Very sparse dusting — flowers, ore flecks");
-        typeBtn(gui, sp, stick, 4, Items.SPONGE, PlotBrush.Type.ERASE, "Erase", "Surface mode restores the ground; ball mode clears to air");
-        typeBtn(gui, sp, stick, 5, Items.STONE_BRICKS, PlotBrush.Type.WALL, "Wall", "Textures the vertical face you aim at — mix up flat walls");
-        gui.setSlot(7, new GuiElementBuilder(c.surface ? Items.GRASS_BLOCK : Items.ENDER_PEARL)
+        typeBtn(gui, sp, stick, 4, Items.STONE_BRICKS, PlotBrush.Type.WALL, "Wall", "Textures the vertical face you aim at — mix up flat walls");
+        typeBtn(gui, sp, stick, 5, Items.AMETHYST_SHARD, PlotBrush.Type.GRADIENT, "Gradient", "Palette IN ORDER — rings on the ground, bottom-to-top on walls");
+        typeBtn(gui, sp, stick, 6, Items.CLAY_BALL, PlotBrush.Type.BLEND, "Blend", "Re-mixes the blocks already there — erases seams, no palette needed");
+        typeBtn(gui, sp, stick, 7, Items.DIRT, PlotBrush.Type.RAISE, "Raise", "Mounds the terrain up (fade = smooth hill); palette overrides the fill");
+        typeBtn(gui, sp, stick, 8, Items.IRON_SHOVEL, PlotBrush.Type.LOWER, "Lower", "Dips the terrain down, re-capping the new surface");
+        typeBtn(gui, sp, stick, 9, Items.QUARTZ, PlotBrush.Type.SMOOTH, "Smooth", "Averages bumpy terrain toward its neighbors — repeat to melt edits");
+        typeBtn(gui, sp, stick, 10, Items.SPONGE, PlotBrush.Type.ERASE, "Erase", "Surface mode restores the ground; ball mode clears to air");
+        gui.setSlot(16, new GuiElementBuilder(c.surface ? Items.GRASS_BLOCK : Items.ENDER_PEARL)
                 .setName(Component.literal("Mode: " + (c.surface ? "Surface" : "Ball")))
                 .addLoreLine(Component.literal(c.surface
                         ? "Paints the top solid block of each column (paths hug terrain)"
@@ -66,21 +71,21 @@ public final class PlotBrushGui {
                 .setCallback((i, t, a, g) -> { c.surface = !c.surface; save(sp, stick, c); render(gui, sp); }).build());
 
         // Row 2 — dials + mask.
-        gui.setSlot(9, new GuiElementBuilder(Items.PAPER)
+        gui.setSlot(12, new GuiElementBuilder(Items.PAPER)
                 .setName(Component.literal("Size (radius): " + c.size)).setCount(Math.max(1, c.size))
                 .addLoreLine(Component.literal("Left-click +1 · Right-click −1"))
                 .setCallback((i, t, a, g) -> { c.size = clamp(c.size + (t.isRight ? -1 : 1), 1, 15); save(sp, stick, c); render(gui, sp); }).build());
-        gui.setSlot(10, new GuiElementBuilder(Items.REDSTONE)
+        gui.setSlot(13, new GuiElementBuilder(Items.REDSTONE)
                 .setName(Component.literal("Density: " + c.density + "%")).setCount(Math.max(1, Math.min(64, c.density)))
                 .addLoreLine(Component.literal("How much of the stroke area gets painted"))
                 .addLoreLine(Component.literal("Left-click +10 · Right-click −10"))
                 .setCallback((i, t, a, g) -> { c.density = clamp(c.density + (t.isRight ? -10 : 10), 10, 100); save(sp, stick, c); render(gui, sp); }).build());
-        gui.setSlot(11, new GuiElementBuilder(c.fade ? Items.FEATHER : Items.IRON_INGOT)
+        gui.setSlot(14, new GuiElementBuilder(c.fade ? Items.FEATHER : Items.IRON_INGOT)
                 .setName(Component.literal("Fade edges: " + (c.fade ? "ON" : "OFF")))
                 .addLoreLine(Component.literal("ON = strokes thin out toward the edge (hand-worn look)"))
                 .setCallback((i, t, a, g) -> { c.fade = !c.fade; save(sp, stick, c); render(gui, sp); }).build());
         Item maskItem = c.mask.isEmpty() ? Items.BARRIER : Compat.item(c.mask);
-        gui.setSlot(14, new GuiElementBuilder(maskItem == Items.AIR ? Items.BARRIER : maskItem)
+        gui.setSlot(17, new GuiElementBuilder(maskItem == Items.AIR ? Items.BARRIER : maskItem)
                 .setName(Component.literal(c.mask.isEmpty() ? "Paint over: anything" : "Paint over: only " + pretty(c.mask)))
                 .addLoreLine(Component.literal("Click holding a block to only repaint that block"))
                 .addLoreLine(Component.literal("(protects walls near your path) · empty cursor clears"))

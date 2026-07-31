@@ -45,7 +45,7 @@ public final class PlotBrush {
     private static final int REACH = 30;
     private static final java.util.Random RNG = new java.util.Random();
 
-    public enum Type { SPLATTER, ROUND, OVERLAY, SPRAY, ERASE, WALL }
+    public enum Type { SPLATTER, ROUND, OVERLAY, SPRAY, ERASE, WALL, RAISE, LOWER, SMOOTH, GRADIENT, BLEND }
 
     /** Brush settings, (de)serialized from the stick's custom-data tag. */
     public static final class Config {
@@ -160,7 +160,11 @@ public final class PlotBrush {
 
         List<BlockState> palette = new ArrayList<>();
         for (String id : c.palette) { Block b = Compat.block(id); if (b != Blocks.AIR) palette.add(b.defaultBlockState()); }
-        if (c.type != Type.ERASE && palette.isEmpty()) {
+        boolean needsPalette = switch (c.type) {
+            case SPLATTER, ROUND, OVERLAY, SPRAY, WALL, GRADIENT -> true;
+            default -> false; // erase/raise/lower/smooth/blend work from the world itself
+        };
+        if (needsPalette && palette.isEmpty()) {
             msg(sp, "This brush has no blocks yet — sneak + right-click to open it and fill the palette.");
             return;
         }
@@ -205,6 +209,90 @@ public final class PlotBrush {
             return;
         }
 
+        // ---- terraformers: raise / lower / smooth ----
+        if (c.type == Type.RAISE || c.type == Type.LOWER || c.type == Type.SMOOTH) {
+            terraform(sp, level, c, center, admin, r, palette, writes);
+            PlotEdit.commit(sp, level, writes, brushVerb(c.type));
+            return;
+        }
+
+        // ---- gradient: palette in ORDER - radial on the ground, bottom-to-top on a wall ----
+        if (c.type == Type.GRADIENT) {
+            net.minecraft.core.Direction face = ((BlockHitResult) hit).getDirection();
+            int n = palette.size();
+            if (face.getAxis().isHorizontal()) {
+                net.minecraft.core.Direction inward = face.getOpposite(), tangent = face.getClockWise();
+                for (int u = -r; u <= r; u++) for (int v = -r; v <= r; v++) {
+                    if (Math.sqrt(u * u + v * v) > r + 0.45) continue;
+                    double t = (v + r + 0.5) / (2 * r + 1) * n;              // 0 bottom -> n top
+                    BlockState chosen = palette.get(clampIdx((int) (t + (RNG.nextDouble() - 0.5) * 0.9), n));
+                    BlockPos start = center.relative(face, 2).relative(tangent, u).above(v);
+                    for (int k = 0; k <= 5; k++) {
+                        BlockPos wp = start.relative(inward, k);
+                        BlockState cur = level.getBlockState(wp);
+                        if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
+                        if (level.getBlockState(wp.relative(face)).isAir())
+                            addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, false, chosen);
+                        break;
+                    }
+                }
+            } else {
+                for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
+                    double dist = Math.sqrt(dx * dx + dz * dz);
+                    if (dist > r + 0.45) continue;
+                    double t = dist / (r + 0.5) * n;                          // palette[0] center -> last at edge
+                    BlockState chosen = palette.get(clampIdx((int) (t + (RNG.nextDouble() - 0.5) * 0.9), n));
+                    for (int y = center.getY(); y >= center.getY() - r - 2; y--) {
+                        BlockPos wp = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
+                        BlockState cur = level.getBlockState(wp);
+                        if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
+                        if (level.getBlockState(wp.above()).isAir())
+                            addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, true, chosen);
+                        break;
+                    }
+                }
+            }
+            PlotEdit.commit(sp, level, writes, brushVerb(c.type));
+            return;
+        }
+
+        // ---- blend: re-scatter the blocks already in the stroke - erases seams ----
+        if (c.type == Type.BLEND) {
+            List<BlockState> pool = new ArrayList<>();
+            List<BlockPos> targets = new ArrayList<>();
+            for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
+                double dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > r + 0.45) continue;
+                if (c.surface) {
+                    for (int y = center.getY(); y >= center.getY() - r - 2; y--) {
+                        BlockPos wp = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
+                        BlockState cur = level.getBlockState(wp);
+                        if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
+                        if (level.getBlockState(wp.above()).isAir()) { pool.add(cur); targets.add(wp); }
+                        break;
+                    }
+                } else {
+                    for (int dy = -r; dy <= r; dy++) {
+                        if (Math.sqrt(dx * dx + dy * dy + dz * dz) > r + 0.45) continue;
+                        BlockPos wp = center.offset(dx, dy, dz);
+                        BlockState cur = level.getBlockState(wp);
+                        if (!cur.isAir() && cur.getFluidState().isEmpty()) { pool.add(cur); targets.add(wp); }
+                    }
+                }
+            }
+            if (pool.isEmpty()) { msg(sp, "Nothing to blend here."); return; }
+            for (BlockPos wp : targets) {
+                double dist = Math.hypot(wp.getX() - center.getX(), wp.getZ() - center.getZ());
+                double chance = c.density / 100.0;
+                if (c.fade) chance *= Math.max(0, 1.0 - (dist / (r + 0.5)) * (dist / (r + 0.5)));
+                if (RNG.nextDouble() > chance) continue;
+                addWrite(writes, sp, level, admin, wp, level.getBlockState(wp), maskBlock, palette, c, false,
+                        pool.get(RNG.nextInt(pool.size())));
+            }
+            PlotEdit.commit(sp, level, writes, brushVerb(c.type));
+            return;
+        }
+
         if (c.type == Type.WALL) {
             net.minecraft.core.Direction face = ((BlockHitResult) hit).getDirection();
             if (!face.getAxis().isHorizontal()) { msg(sp, "Aim at the SIDE of a wall to texture it."); return; }
@@ -224,7 +312,7 @@ public final class PlotBrush {
                     // a wall face is a face exposed to air on the side you aim at — the lawn in
                     // front of the wall fails this test, so the ground never gets wall texture
                     if (level.getBlockState(wp.relative(face)).isAir())
-                        addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, false);
+                        addWrite(writes, sp, level, admin, wp, cur, maskBlock, palette, c, false, null);
                     break;
                 }
             }
@@ -254,7 +342,7 @@ public final class PlotBrush {
                     BlockState cur = level.getBlockState(p);
                     if (cur.isAir() || !cur.getFluidState().isEmpty()) continue;
                     if (scatter && !level.getBlockState(p.above()).isAir()) break; // covered — skip column
-                    addWrite(writes, sp, level, admin, p, cur, maskBlock, palette, c, true);
+                    addWrite(writes, sp, level, admin, p, cur, maskBlock, palette, c, true, null);
                     break;
                 }
             } else {
@@ -269,7 +357,7 @@ public final class PlotBrush {
                     if (c.fade) ballChance *= Math.max(0, 1.0 - (d3 / (r + 0.5)) * (d3 / (r + 0.5)));
                     if (RNG.nextDouble() > ballChance) continue;
                     BlockPos p = center.offset(dx, dy, dz);
-                    addWrite(writes, sp, level, admin, p, level.getBlockState(p), maskBlock, palette, c, false);
+                    addWrite(writes, sp, level, admin, p, level.getBlockState(p), maskBlock, palette, c, false, null);
                 }
             }
         }
@@ -278,14 +366,14 @@ public final class PlotBrush {
 
     private static void addWrite(List<PlotEdit.Write> writes, ServerPlayer sp, ServerLevel level, boolean admin,
                                  BlockPos p, BlockState cur, Block maskBlock, List<BlockState> palette, Config c,
-                                 boolean surfaceMode) {
+                                 boolean surfaceMode, BlockState forced) {
         if (!PlotEdit.canEdit(sp, admin, p.getX(), p.getY(), p.getZ())) return;
         if (maskBlock != null && !cur.is(maskBlock)) return;
         if (c.type == Type.ERASE) {
             if (!cur.isAir()) writes.add(new PlotEdit.Write(p, Blocks.AIR.defaultBlockState()));
             return;
         }
-        BlockState chosen = palette.get(RNG.nextInt(palette.size()));
+        BlockState chosen = forced != null ? forced : palette.get(RNG.nextInt(palette.size()));
         // Half blocks (slabs, trapdoors, carpets…) go ON TOP of the surface — sinking them into
         // the ground punches trapdoor-holes in the lawn. Full blocks and stairs replace as before.
         if (surfaceMode && sitsOnTop(chosen)) {
@@ -316,8 +404,67 @@ public final class PlotBrush {
         return switch (t) {
             case SPLATTER -> "Splattered"; case ROUND -> "Painted"; case OVERLAY -> "Overlaid";
             case SPRAY -> "Sprayed"; case ERASE -> "Erased"; case WALL -> "Textured";
+            case RAISE -> "Raised"; case LOWER -> "Lowered"; case SMOOTH -> "Smoothed";
+            case GRADIENT -> "Gradient"; case BLEND -> "Blended";
         } + " —";
     }
+
+    /** Raise mounds terrain up, Lower dips it, Smooth averages each column toward its 3x3 mean. */
+    private static void terraform(ServerPlayer sp, ServerLevel level, Config c, BlockPos center,
+                                  boolean admin, int r, List<BlockState> palette, List<PlotEdit.Write> writes) {
+        int peak = Math.max(1, r / 2);
+        for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
+            double dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist > r + 0.45) continue;
+            int x = center.getX() + dx, z = center.getZ() + dz;
+            int sy = surfaceY(level, x, z, center.getY(), r + 8);
+            if (sy == Integer.MIN_VALUE) continue;
+            BlockState surf = level.getBlockState(new BlockPos(x, sy, z));
+
+            int target = sy;
+            if (c.type == Type.SMOOTH) {
+                int sum = 0, cnt = 0;
+                for (int nx = -1; nx <= 1; nx++) for (int nz = -1; nz <= 1; nz++) {
+                    int ny = surfaceY(level, x + nx, z + nz, center.getY(), r + 8);
+                    if (ny != Integer.MIN_VALUE) { sum += ny; cnt++; }
+                }
+                if (cnt > 0) target = Math.round((float) sum / cnt);
+            } else {
+                double fall = c.fade ? Math.max(0, 1.0 - (dist / (r + 0.5)) * (dist / (r + 0.5))) : 1.0;
+                int amount = (int) Math.round(peak * fall);
+                if (amount == 0) continue;
+                target = c.type == Type.RAISE ? sy + amount : sy - amount;
+            }
+
+            if (target > sy) {                    // build the column up: filler below, cap on top
+                for (int y = sy + 1; y <= target; y++) {
+                    if (!PlotEdit.canEdit(sp, admin, x, y, z)) break;
+                    BlockState put = !palette.isEmpty() ? palette.get(RNG.nextInt(palette.size()))
+                            : (y == target ? surf : Blocks.DIRT.defaultBlockState());
+                    writes.add(new PlotEdit.Write(new BlockPos(x, y, z), put));
+                }
+            } else if (target < sy) {             // carve down, then re-cap the new surface
+                for (int y = sy; y > target; y--)
+                    if (PlotEdit.canEdit(sp, admin, x, y, z))
+                        writes.add(new PlotEdit.Write(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState()));
+                if (PlotEdit.canEdit(sp, admin, x, target, z)) {
+                    BlockState cap = !palette.isEmpty() ? palette.get(RNG.nextInt(palette.size())) : surf;
+                    writes.add(new PlotEdit.Write(new BlockPos(x, target, z), cap));
+                }
+            }
+        }
+    }
+
+    /** Topmost solid, non-fluid block near refY, or MIN_VALUE if the window is all air. */
+    private static int surfaceY(ServerLevel level, int x, int z, int refY, int window) {
+        for (int y = refY + window; y >= refY - window; y--) {
+            BlockState s = level.getBlockState(new BlockPos(x, y, z));
+            if (!s.isAir() && s.getFluidState().isEmpty()) return y;
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    private static int clampIdx(int i, int n) { return Math.max(0, Math.min(n - 1, i)); }
 
     // ---- particle previews ---------------------------------------------------
 
