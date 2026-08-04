@@ -105,7 +105,7 @@ public final class PlotCommands {
                         .then(Commands.argument("player", GameProfileArgument.gameProfile())
                                 .executes(PlotCommands::setOwner)))
                 .then(Commands.literal("version").executes(PlotCommands::version));
-        EditCommands.attach(root, bc); // editwand … tape — the editor subcommands (EditCommands.java)
+        com.draftsmith.command.DraftCommands.attach(root, bc); // editwand … tape — the bundled DraftSmith editor
         d.register(root);
 
         // Convenience alias; becomes the clickable sgui menu in v1.1.

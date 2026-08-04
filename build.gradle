@@ -14,6 +14,8 @@ base {
 repositories {
     // For sgui (added in v1.1). Harmless to leave here now.
     maven { url = 'https://maven.nucleoid.xyz' }
+    // For the DraftSmith editor jar — built locally: run publishToMavenLocal in draftsmith-mod.
+    mavenLocal()
 }
 
 dependencies {
@@ -27,6 +29,12 @@ dependencies {
     // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Must also be present at
     // runtime — sgui-2.0.0+26.1.jar goes in the server's mods folder alongside this mod.
     implementation "eu.pb4:sgui:2.1.0+26.2"
+
+    // The build editor (shapes, brushes, measure, clipboard, undo) — our own DraftSmith mod,
+    // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing. The +MC suffix
+    // tracks this branch's minecraft_version automatically.
+    implementation "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
+    include "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
 
     // Optional economy integration — Patbox's Common Economy API (same maven as sgui). compileOnly:
     // NOT bundled and NOT required. It's provided at runtime only if the server runs a Common Economy

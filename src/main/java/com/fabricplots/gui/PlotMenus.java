@@ -62,7 +62,7 @@ public final class PlotMenus {
             if (sp.level().dimension() != FabricPlots.PLOTS_DIM) {
                 sp.sendSystemMessage(Component.literal("Go to the plot world to use the Build Editor — try Go to Spawn."));
                 g.close();
-            } else PlotEditGui.open(sp);
+            } else com.draftsmith.gui.DraftEditGui.open(sp);
         }));
         g.setSlot(14, btn(Items.RECOVERY_COMPASS, "Portal Keys", "A key for each plot you own — usable at your base.", (i, t, a, gg) -> {
             g.close();

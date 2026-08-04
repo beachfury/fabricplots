@@ -49,7 +49,9 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
 - **Build tools — a "WorldEdit-lite" that's jailed to your plot.** `set`, `replace`, `walls`, `sphere`,
   `hsphere`, `cyl`, `disc`, `ring`, `line`, `copy`, `cut`, `paste`, `stack`, `move`, `undo`, `redo` — every
   block written is ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing
-  risk, no WorldEdit region setup.
+  risk, no WorldEdit region setup. (Since 0.5.0 the editor is our standalone
+  [DraftSmith](https://github.com/beachfury/draftsmith) mod, bundled inside the jar — nothing extra to
+  install, same tools, same `/plot` commands.)
 - **Editor hub with Shapes & Measure screens** — `/plot edit` opens a quick-bar hub (corners, clipboard,
   fill/walls, stack/move, undo/redo) with doors into two dedicated screens (`/plot measure` jumps
   straight to the measuring tools). **Shapes**: circle, square,

@@ -5,8 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "FluidContainmentMixin",
-    "PistonContainmentMixin",
-    "RandomTexturePlaceMixin"
+    "PistonContainmentMixin"
   ],
   "injectors": {
     "defaultRequire": 1
