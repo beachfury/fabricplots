@@ -7,7 +7,7 @@ import com.fabricplots.core.PlotData;
 import com.fabricplots.core.PlotExpiry;
 import com.fabricplots.core.PlotManager;
 import com.fabricplots.core.PlotsConfig;
-import com.fabricplots.edit.PlotEdit;
+import com.fabricplots.edit.PlotEditAccess;
 import com.fabricplots.player.PlotAmbience;
 import com.fabricplots.player.PlotPlaceholders;
 import com.fabricplots.protect.PlotMobGuard;
@@ -59,6 +59,11 @@ public final class FabricPlots implements ModInitializer {
         // Live, admin-editable settings (config/fabricplots.properties).
         PlotsConfig.load();
 
+        // The bundled DraftSmith editor writes every block through this provider — the plot
+        // jail. DraftSmith initialized before us (hard dependency), so its wand/brush events
+        // are already registered ahead of our protection, same order as the built-in editor.
+        com.draftsmith.api.DraftSmithApi.setAccess(new PlotEditAccess());
+
         // Load / save plot ownership + the "decorated chunks" record with the world.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             PlotManager.load(server);
@@ -82,9 +87,6 @@ public final class FabricPlots implements ModInitializer {
         CombineWand.register();
         // Frame portals (calcite frame + flint&steel / Plot Key) between home world and plots.
         PortalManager.register();
-        // Plot edit wand (selection) — before protection so it can swallow its own clicks.
-        PlotEdit.register();
-        com.fabricplots.edit.PlotBrush.register(com.fabricplots.gui.PlotBrushGui::open);
         // Grief protection inside the plots world.
         PlotProtection.register();
         // Biome-spawned mobs are confined to the plot they spawned on.

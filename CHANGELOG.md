@@ -3,6 +3,25 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
+## [0.5.0] — 2026-08-04
+
+The editor is now its own mod — bundled, so you notice nothing.
+
+### Changed
+- **The build editor became [DraftSmith](https://github.com/beachfury/draftsmith).** The whole
+  toolkit — GUI shapes, the 11 paint brushes, measuring tools, clipboard, random texture and undo —
+  now lives in a standalone mod any Fabric server can run on any world. FabricPlots **bundles it
+  inside its jar** (Jar-in-Jar): nothing extra to download, every `/plot` editor command works
+  exactly as in 0.4.0, and edits stay jailed to your plot through the same ownership checks —
+  FabricPlots plugs its plot rules straight into DraftSmith's per-block permission API. The Erase
+  brush still restores plot floors (custom floors included).
+- **Your existing tools keep working.** Editor wands and paint brushes from 0.4.0 and earlier
+  (including pre-0.4.0 renamed wands) are recognized as before; brushes carry their settings over.
+  Newly-given wands are named **Editor Wand** and brushes **Paint Brush**.
+- Cosmetic only: the editor screens are now titled "Build Editor" (they were "Plot Editor"), and a
+  couple of editor chat lines are worded slightly differently. Every command, button, jail rule and
+  block behavior is unchanged.
+
 ## [0.4.0] — 2026-07-31
 
 The painting update.
