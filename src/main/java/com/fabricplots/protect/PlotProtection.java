@@ -12,7 +12,6 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -139,7 +138,7 @@ public final class PlotProtection {
         // exposed (ops.json is empty, isSingleplayerOwner can miss), so just allow it outright.
         // On a dedicated server this is false, so real ops are gated by the permission check below.
         if (server.isSingleplayer()) return true;
-        if (sp.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) return true;
-        return server.isSingleplayerOwner(sp.nameAndId()) || server.getPlayerList().isOp(sp.nameAndId());
+        if (sp.hasPermissions(2)) return true; // 1.21.1: numeric op levels (2 = gamemaster)
+        return server.isSingleplayerOwner(sp.getGameProfile()) || server.getPlayerList().isOp(sp.getGameProfile());
     }
 }

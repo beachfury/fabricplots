@@ -1,6 +1,7 @@
 package com.fabricplots.gui;
 
 import com.fabricplots.compat.Compat;
+import com.fabricplots.compat.GuiCompat;
 
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotConfig;
@@ -22,7 +23,6 @@ import eu.pb4.sgui.api.gui.SimpleGui;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -77,7 +77,7 @@ public final class PlotMenus {
                 : "Added " + n + " Portal Key" + (n == 1 ? "" : "s") + " — build a calcite frame at your base and right-click with one."));
         }));
         g.setSlot(16, btn(Items.ENDER_PEARL, "Go to Spawn", "Teleport to the plot-world spawn.", (i, t, a, gg) -> {
-            sp.teleportTo(plots(sp), PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5, Set.of(), sp.getYRot(), 0f, false);
+            sp.teleportTo(plots(sp), PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5, Set.of(), sp.getYRot(), 0f);
             g.close();
         }));
         g.setSlot(20, btn(Items.SPYGLASS, "Browse Plots", "Every claimed plot — visit any of them.", (i, t, a, gg) -> browseAll(sp, 0)));
@@ -143,7 +143,7 @@ public final class PlotMenus {
         g.setSlot(15, btn(Items.IRON_BARS, "Denied (" + d.denied.size() + ")", "People banned from this plot.", (i, t, a, gg) -> members(sp, anchor, true, 0)));
         g.setSlot(16, btn(Items.ENDER_PEARL, "Teleport here", "Go to this plot.", (i, t, a, gg) -> {
             int[] xz = PlotManager.homeXZ(anchor);
-            sp.teleportTo(plots(sp), xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5, Set.of(), sp.getYRot(), 0f, false);
+            sp.teleportTo(plots(sp), xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5, Set.of(), sp.getYRot(), 0f);
             g.close();
         }));
         g.setSlot(19, btn(d.pvp ? Items.DIAMOND_SWORD : Items.SHIELD, "PvP: " + (d.pvp ? "ON" : "OFF"),
@@ -336,7 +336,7 @@ public final class PlotMenus {
         int start = page * PER_PAGE;
         for (int i = 0; i < PER_PAGE && start + i < online.size(); i++) {
             ServerPlayer pl = online.get(start + i);
-            g.setSlot(i, new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(pl.getUUID())
+            g.setSlot(i, GuiCompat.head(sp.level().getServer(), pl.getUUID())
                     .setName(Component.literal(pl.getName().getString()))
                     .setLore(List.of(Component.literal("Click to hand this plot over")))
                     .setCallback((x, t, a, gg) -> confirmTransfer(sp, anchor, pl.getUUID(), pl.getName().getString())).build());
@@ -376,8 +376,8 @@ public final class PlotMenus {
             if (PlotManager.owningPlot(pl.getBlockX(), pl.getBlockZ()) != d) continue;
             if (pl.getUUID().equals(d.owner) || d.canBuild(pl.getUUID()) || PlotProtection.isAdmin(pl)) continue;
             pl.teleportTo((ServerLevel) pl.level(), PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5,
-                    Set.of(), pl.getYRot(), 0f, false);
-            pl.sendOverlayMessage(Component.literal("The plot owner sent you back to spawn."));
+                    Set.of(), pl.getYRot(), 0f);
+            pl.displayClientMessage(Component.literal("The plot owner sent you back to spawn."), true);
             n++;
         }
         return n;
@@ -435,7 +435,7 @@ public final class PlotMenus {
         int start = page * PER_PAGE;
         for (int i = 0; i < PER_PAGE && start + i < ids.size(); i++) {
             UUID id = ids.get(start + i);
-            g.setSlot(i, new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(id)
+            g.setSlot(i, GuiCompat.head(sp.level().getServer(), id)
                     .setName(Component.literal(nameOf(sp, id)))
                     .setLore(List.of(Component.literal("Click to remove")))
                     .setCallback((x, t, a, gg) -> { (deny ? d.denied : d.trusted).remove(id); PlotManager.save(); members(sp, anchor, deny, page); }).build());
@@ -460,7 +460,7 @@ public final class PlotMenus {
         int start = page * PER_PAGE;
         for (int i = 0; i < PER_PAGE && start + i < online.size(); i++) {
             ServerPlayer pl = online.get(start + i);
-            g.setSlot(i, new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(pl.getUUID())
+            g.setSlot(i, GuiCompat.head(sp.level().getServer(), pl.getUUID())
                     .setName(Component.literal(pl.getName().getString()))
                     .setLore(List.of(Component.literal("Click to add")))
                     .setCallback((x, t, a, gg) -> { addMember(d, pl.getUUID(), deny); PlotManager.save(); members(sp, anchor, deny, 0); }).build());
@@ -611,11 +611,11 @@ public final class PlotMenus {
         ServerLevel level = plots(sp);
         PlotData d = PlotManager.get(anchor);
         if (d != null && d.home != null) {
-            sp.teleportTo(level, d.home.getX() + 0.5, d.home.getY(), d.home.getZ() + 0.5, Set.of(), sp.getYRot(), 0f, false);
+            sp.teleportTo(level, d.home.getX() + 0.5, d.home.getY(), d.home.getZ() + 0.5, Set.of(), sp.getYRot(), 0f);
             return;
         }
         int[] xz = PlotManager.homeXZ(anchor);
-        sp.teleportTo(level, xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5, Set.of(), sp.getYRot(), 0f, false);
+        sp.teleportTo(level, xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5, Set.of(), sp.getYRot(), 0f);
     }
 
     // ---- helpers ---------------------------------------------------------

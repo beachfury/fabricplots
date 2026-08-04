@@ -24,7 +24,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,7 +33,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,7 +46,7 @@ public final class FabricPlots implements ModInitializer {
     /** ResourceKey for our datapack dimension (data/fabricplots/dimension/plots.json). */
     public static final ResourceKey<Level> PLOTS_DIM = ResourceKey.create(
             Registries.DIMENSION,
-            Identifier.fromNamespaceAndPath(PlotConfig.DIM_NAMESPACE, PlotConfig.DIM_PATH));
+            ResourceLocation.fromNamespaceAndPath(PlotConfig.DIM_NAMESPACE, PlotConfig.DIM_PATH));
 
     // Last known dimension per player. This Fabric API version has no
     // world-change event, so we poll once per server tick instead.
@@ -94,11 +94,10 @@ public final class FabricPlots implements ModInitializer {
         // %fabricplots:*% placeholders (only when Patbox's Placeholder API is installed).
         PlotPlaceholders.register();
 
-        // Paint roads / sidewalks as chunks generate (base only — no block-entities mid-gen).
-        ServerChunkEvents.CHUNK_GENERATE.register(PlotWorldPainter::onGenerate);
-        // Place furniture (lamps etc.) AFTER a chunk loads — block-entities are safe post-gen.
-        ServerChunkEvents.CHUNK_LOAD.register((world, chunk, newChunk) ->
-                PlotWorldPainter.onChunkLoad(world, chunk));
+        // 1.21.1's Fabric API has no CHUNK_GENERATE event (26.x addition), and CHUNK_LOAD has no
+        // newlyCreated flag. Roads AND furniture are both painted on a chunk's FIRST load instead
+        // (the painter's persisted decorated-chunks record makes it exactly once per chunk).
+        ServerChunkEvents.CHUNK_LOAD.register(PlotWorldPainter::onChunkLoad);
 
         ServerTickEvents.END_SERVER_TICK.register(FabricPlots::onServerTick);
 
@@ -117,13 +116,15 @@ public final class FabricPlots implements ModInitializer {
         ServerLevel plots = server.getLevel(PLOTS_DIM);
         if (plots == null) return;
         var rules = plots.getGameRules();
-        rules.set(GameRules.ADVANCE_TIME, PlotsConfig.advanceTime, server);
-        rules.set(GameRules.ADVANCE_WEATHER, PlotsConfig.advanceWeather, server);
+        rules.getRule(GameRules.RULE_DAYLIGHT).set(PlotsConfig.advanceTime, server);
+        rules.getRule(GameRules.RULE_WEATHER_CYCLE).set(PlotsConfig.advanceWeather, server);
         // Build-protection flags (a flag = true means "protect", so the matching gamerule is turned OFF).
-        rules.set(GameRules.TNT_EXPLODES, !PlotsConfig.protectExplosions, server);
-        rules.set(GameRules.MOB_GRIEFING, !PlotsConfig.protectMobGriefing, server);
-        rules.set(GameRules.PROJECTILES_CAN_BREAK_BLOCKS, !PlotsConfig.protectProjectiles, server);
-        rules.set(GameRules.FIRE_SPREAD_RADIUS_AROUND_PLAYER, PlotsConfig.protectFire ? 0 : 100000, server);
+        // NOTE(1.21.1): there is no tntExplodes gamerule on this version (26.x addition) — TNT block
+        // damage can't be turned off via gamerule here. The protect-explosions config still bans the
+        // worst offenders (respawn anchors / end crystals) through PlotProtection.
+        rules.getRule(GameRules.RULE_MOBGRIEFING).set(!PlotsConfig.protectMobGriefing, server);
+        rules.getRule(GameRules.RULE_PROJECTILESCANBREAKBLOCKS).set(!PlotsConfig.protectProjectiles, server);
+        rules.getRule(GameRules.RULE_DOFIRETICK).set(!PlotsConfig.protectFire, server);
     }
 
     private static void onServerTick(MinecraftServer server) {
@@ -154,16 +155,16 @@ public final class FabricPlots implements ModInitializer {
                 PlotData last = LAST_PLOT.put(p.getUUID(), pd);
                 if (pd != null && pd.denied.contains(p.getUUID()) && !PlotProtection.isAdmin(p)) {
                     p.teleportTo((ServerLevel) p.level(), PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5,
-                            java.util.Set.of(), p.getYRot(), 0.0f, false);
-                    if (pd != last) p.sendOverlayMessage(Component.literal("You're denied from that plot."));
+                            java.util.Set.of(), p.getYRot(), 0.0f);
+                    if (pd != last) p.displayClientMessage(Component.literal("You're denied from that plot."), true);
                 } else if (pd != null && pd != last && !pd.greeting.isBlank()) {
                     // The owner's custom greeting always wins over the stock welcome line.
-                    p.sendOverlayMessage(Component.literal(pd.greeting));
+                    p.displayClientMessage(Component.literal(pd.greeting), true);
                 } else if (PlotsConfig.welcomeMessage && pd != null && pd != last) {
                     String owner = pd.ownerName.isBlank() ? "someone" : pd.ownerName;
                     String label = pd.name.isBlank() ? owner + "'s plot" : owner + "'s " + pd.name;
                     // Action bar (small text above the hotbar), not chat — avoids spam as players move around.
-                    p.sendOverlayMessage(Component.literal("Welcome " + p.getName().getString() + " to " + label + "!"));
+                    p.displayClientMessage(Component.literal("Welcome " + p.getName().getString() + " to " + label + "!"), true);
                 }
                 PlotAmbience.tick(p, pd); // per-plot sky illusion (client-only time/weather)
             } else {

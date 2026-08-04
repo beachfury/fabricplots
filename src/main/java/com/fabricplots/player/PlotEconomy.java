@@ -5,10 +5,8 @@ import com.fabricplots.core.PlotsConfig;
 
 import eu.pb4.common.economy.api.CommonEconomy;
 import eu.pb4.common.economy.api.EconomyAccount;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-
-import java.math.BigInteger;
 
 /**
  * Optional economy integration via Patbox's Common Economy API ({@code eu.pb4:common-economy-api}).
@@ -58,14 +56,15 @@ public final class PlotEconomy {
         }
 
         static String format(ServerPlayer player, long amount) {
+            // Common Economy API 1.x (1.21.1 era) formats plain longs; the BigInteger overload is 2.x.
             EconomyAccount acc = account(player);
-            return acc != null ? acc.currency().formatValue(BigInteger.valueOf(amount), false) : Long.toString(amount);
+            return acc != null ? acc.currency().formatValue(amount, false) : Long.toString(amount);
         }
 
         /** The player's economy account for the configured currency (blank config = the provider's default). */
         static EconomyAccount account(ServerPlayer player) {
             String cid = PlotsConfig.economyCurrencyId;
-            if (cid != null && !cid.isBlank()) return CommonEconomy.getAccount(player, Identifier.parse(cid));
+            if (cid != null && !cid.isBlank()) return CommonEconomy.getAccount(player, ResourceLocation.parse(cid));
             var accounts = CommonEconomy.getAccounts(player);
             return accounts.isEmpty() ? null : accounts.iterator().next();
         }

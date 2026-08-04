@@ -14,7 +14,6 @@ import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
@@ -133,7 +132,7 @@ public final class PlotDesignerGui {
     private static void markerRow(SimpleGui g, int guiRow, Item mark, String name, String lore) {
         for (int c = 0; c < 9; c++) {
             int slot = guiRow * 9 + c;
-            if (g.getGuiElement(slot) != null) continue; // don't overwrite corner controls
+            if (g.getSlot(slot) != null) continue; // don't overwrite corner controls (sgui 1.x: getSlot)
             g.setSlot(slot, new GuiElementBuilder(mark).setName(Component.literal(name))
                     .setLore(List.of(Component.literal(lore))).build());
         }

@@ -337,7 +337,8 @@ public final class PlotCommands {
         if (br >= 0 && br < cut) cut = br;
         final String suggest = command.substring(0, cut); // drop <args>/[args] from what gets typed
         src.sendSuccess(() -> Component.literal("  " + command)
-                .withStyle(s -> s.withColor(CLR_YELLOW).withClickEvent(new ClickEvent.SuggestCommand(suggest)))
+                .withStyle(s -> s.withColor(CLR_YELLOW)
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, suggest)))
                 .append(Component.literal("   " + desc).withStyle(s -> s.withColor(CLR_PURPLE))), false);
     }
 
@@ -401,11 +402,11 @@ public final class PlotCommands {
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = PlotManager.get(pp);
             if (d == null) { msg(ctx, "Stand on a claimed plot to transfer it."); return 0; }
-            d.owner = profile.id();
-            d.ownerName = profile.name();
-            d.trusted.remove(profile.id());
+            d.owner = profile.getId();
+            d.ownerName = profile.getName();
+            d.trusted.remove(profile.getId());
             PlotManager.save();
-            msg(ctx, "Plot transferred to " + profile.name() + ".");
+            msg(ctx, "Plot transferred to " + profile.getName() + ".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -519,10 +520,10 @@ public final class PlotCommands {
             if (profiles.isEmpty()) { msg(ctx, "Unknown player."); return 0; }
             var profile = profiles.iterator().next();
             for (PlotData d : PlotManager.allPlots())
-                if (profile.id().equals(d.owner) && !d.biomeId.isBlank())
+                if (profile.getId().equals(d.owner) && !d.biomeId.isBlank())
                     PlotBiomes.resetBiome(plotsLevel(ctx), d); // before removal — needs the cells
-            int n = PlotManager.removeAllOwnedBy(profile.id());
-            msg(ctx, "Freed " + n + " plot(s) previously owned by " + profile.name() + ".");
+            int n = PlotManager.removeAllOwnedBy(profile.getId());
+            msg(ctx, "Freed " + n + " plot(s) previously owned by " + profile.getName() + ".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -625,7 +626,7 @@ public final class PlotCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             ServerLevel plots = plotsLevel(ctx);
             p.teleportTo(plots, PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5,
-                    Set.of(), -45.0f, 0.0f, false);
+                    Set.of(), -45.0f, 0.0f);
             msg(ctx, "Welcome to the plot world! Walk into an empty plot and use /plot claim.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -693,14 +694,14 @@ public final class PlotCommands {
             if (profiles.isEmpty()) { msg(ctx, "Unknown player."); return 0; }
             var profile = profiles.iterator().next();
             if (add) {
-                if (profile.id().equals(d.owner)) { msg(ctx, "You can't deny the owner."); return 0; }
-                d.denied.add(profile.id());
-                d.trusted.remove(profile.id()); // denying revokes trust
+                if (profile.getId().equals(d.owner)) { msg(ctx, "You can't deny the owner."); return 0; }
+                d.denied.add(profile.getId());
+                d.trusted.remove(profile.getId()); // denying revokes trust
             } else {
-                d.denied.remove(profile.id());
+                d.denied.remove(profile.getId());
             }
             PlotManager.save();
-            msg(ctx, (add ? "Denied " : "Un-denied ") + profile.name() + " on this plot.");
+            msg(ctx, (add ? "Denied " : "Un-denied ") + profile.getName() + " on this plot.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -743,14 +744,14 @@ public final class PlotCommands {
     }
 
     private static void teleport(ServerPlayer p, ServerLevel level, PlotPos pp) {
-        // 26.1.2 teleportTo: (level, x, y, z, relativeFlags, yaw, pitch, setCamera)
+        // 1.21.1 teleportTo: (level, x, y, z, relativeFlags, yaw, pitch) — no setCamera arg.
         PlotData d = PlotManager.get(pp);
         if (d != null && d.home != null) {
-            p.teleportTo(level, d.home.getX() + 0.5, d.home.getY(), d.home.getZ() + 0.5, Set.of(), p.getYRot(), 0.0f, false);
+            p.teleportTo(level, d.home.getX() + 0.5, d.home.getY(), d.home.getZ() + 0.5, Set.of(), p.getYRot(), 0.0f);
             return;
         }
         int[] xz = PlotManager.homeXZ(pp);
-        p.teleportTo(level, xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5, Set.of(), p.getYRot(), 0.0f, false);
+        p.teleportTo(level, xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5, Set.of(), p.getYRot(), 0.0f);
     }
 
     private static boolean isOp(CommandContext<CommandSourceStack> ctx, ServerPlayer p) {

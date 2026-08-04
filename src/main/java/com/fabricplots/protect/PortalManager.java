@@ -17,7 +17,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -131,7 +131,7 @@ public final class PortalManager {
         if (cd == null) return null;
         CompoundTag tag = cd.copyTag();
         if (!tag.contains("plot_px") || !tag.contains("plot_pz")) return null;
-        return new PlotPos(tag.getIntOr("plot_px", 0), tag.getIntOr("plot_pz", 0));
+        return new PlotPos(tag.getInt("plot_px"), tag.getInt("plot_pz"));
     }
 
     // ---- activation (lighting a frame) ----------------------------------
@@ -302,13 +302,13 @@ public final class PortalManager {
         saveReturns(); // survive server restarts while players are in the plot world
         if (portal.type == DestType.PLAZA) {
             p.teleportTo(plots, PlotsConfig.spawnX + 0.5, PlotsConfig.spawnY, PlotsConfig.spawnZ + 0.5,
-                    Set.of(), p.getYRot(), 0.0f, false);
+                    Set.of(), p.getYRot(), 0.0f);
             settle(p);
             msg(p, "Welcome to the plot world! /plot leave to return to your portal.");
         } else {
             int[] xz = PlotManager.homeXZ(portal.plot);
             p.teleportTo(plots, xz[0] + 0.5, PlotConfig.FLOOR_Y, xz[1] + 0.5,
-                    Set.of(), p.getYRot(), 0.0f, false);
+                    Set.of(), p.getYRot(), 0.0f);
             settle(p);
             msg(p, "Warped to plot (" + portal.plot.px() + ", " + portal.plot.pz() + "). /plot leave to return.");
         }
@@ -320,8 +320,8 @@ public final class PortalManager {
         GlobalPos ret = RETURN_POINT.get(p.getUUID());
         ServerLevel dest = ret == null ? server.overworld() : server.getLevel(ret.dimension());
         if (dest == null) dest = server.overworld();
-        BlockPos pos = ret == null ? dest.getRespawnData().pos() : ret.pos();
-        p.teleportTo(dest, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, Set.of(), p.getYRot(), 0.0f, false);
+        BlockPos pos = ret == null ? dest.getSharedSpawnPos() : ret.pos();
+        p.teleportTo(dest, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, Set.of(), p.getYRot(), 0.0f);
         settle(p); // no fall damage stepping out of the portal
         msg(p, "Returned to your home world.");
     }
@@ -446,7 +446,7 @@ public final class PortalManager {
                 try {
                     String[] parts = line.split(";", -1);
                     DestType type = DestType.valueOf(parts[0]);
-                    ResourceKey<Level> dim = ResourceKey.create(Registries.DIMENSION, Identifier.parse(parts[1]));
+                    ResourceKey<Level> dim = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(parts[1]));
                     PlotPos plot = type == DestType.PLOT ? new PlotPos(Integer.parseInt(parts[2]), Integer.parseInt(parts[3])) : null;
                     Set<BlockPos> interior = parsePositions(parts[4]);
                     Set<BlockPos> frame = parts.length > 5 ? parsePositions(parts[5]) : new HashSet<>();
@@ -481,7 +481,7 @@ public final class PortalManager {
             if (!seen.add(portal)) continue;
             String px = portal.plot == null ? "0" : Integer.toString(portal.plot.px());
             String pz = portal.plot == null ? "0" : Integer.toString(portal.plot.pz());
-            lines.add(portal.type + ";" + portal.dim.identifier() + ";" + px + ";" + pz + ";"
+            lines.add(portal.type + ";" + portal.dim.location() + ";" + px + ";" + pz + ";"
                     + join(portal.interior) + ";" + join(portal.frame));
         }
         try {
@@ -501,7 +501,7 @@ public final class PortalManager {
                 try {
                     String[] parts = line.split(";", -1);
                     UUID id = UUID.fromString(parts[0]);
-                    ResourceKey<Level> dim = ResourceKey.create(Registries.DIMENSION, Identifier.parse(parts[1]));
+                    ResourceKey<Level> dim = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(parts[1]));
                     BlockPos pos = new BlockPos(Integer.parseInt(parts[2]), Integer.parseInt(parts[3]), Integer.parseInt(parts[4]));
                     RETURN_POINT.put(id, GlobalPos.of(dim, pos));
                 } catch (Exception e) {
@@ -518,7 +518,7 @@ public final class PortalManager {
         List<String> lines = new ArrayList<>();
         for (Map.Entry<UUID, GlobalPos> e : RETURN_POINT.entrySet()) {
             GlobalPos gp = e.getValue();
-            lines.add(e.getKey() + ";" + gp.dimension().identifier() + ";"
+            lines.add(e.getKey() + ";" + gp.dimension().location() + ";"
                     + gp.pos().getX() + ";" + gp.pos().getY() + ";" + gp.pos().getZ());
         }
         try {

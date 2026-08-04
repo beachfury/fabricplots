@@ -9,7 +9,7 @@ import com.fabricplots.protect.PlotMobGuard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.commands.FillBiomeCommand;
 import net.minecraft.server.level.ServerLevel;
@@ -47,7 +47,7 @@ public final class PlotBiomes {
     public static List<String> allBiomeIds(ServerLevel level) {
         List<String> out = new ArrayList<>();
         try {
-            for (Identifier key : level.registryAccess().lookupOrThrow(Registries.BIOME).keySet()) {
+            for (ResourceLocation key : level.registryAccess().registryOrThrow(Registries.BIOME).keySet()) {
                 String id = key.toString();
                 if (id.equals(DEFAULT_ID)) continue;
                 if (id.startsWith("terrablender:")) continue; // internal deferred placeholders, not real biomes
@@ -154,14 +154,14 @@ public final class PlotBiomes {
     private static int fillRects(ServerLevel level, PlotData d, String biomeId, int pad) {
         Holder<Biome> biome;
         try {
-            biome = level.registryAccess().lookupOrThrow(Registries.BIOME)
-                    .getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(biomeId)));
+            biome = level.registryAccess().registryOrThrow(Registries.BIOME)
+                    .getHolderOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(biomeId)));
         } catch (Exception e) {
             System.err.println("[FabricPlots] Unknown biome " + biomeId + ": " + e);
             return 0;
         }
-        int minY = level.getMinY();
-        int maxY = level.getMaxY();
+        int minY = level.getMinBuildHeight();
+        int maxY = level.getMaxBuildHeight() - 1;
         int tiles = 0;
         for (int[] raw : ownedRects(d)) {                     // raw = xMin, xMax, zMin, zMax
             int[] r = { raw[0] - pad, raw[1] + pad, raw[2] - pad, raw[3] + pad };

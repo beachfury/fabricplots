@@ -5,15 +5,9 @@ import com.fabricplots.compat.Compat;
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotData;
 
-import net.minecraft.core.Holder;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.clock.ClockNetworkState;
-import net.minecraft.world.clock.WorldClock;
-import net.minecraft.world.clock.WorldClocks;
 
 import java.util.HashMap;
 import java.util.Map;

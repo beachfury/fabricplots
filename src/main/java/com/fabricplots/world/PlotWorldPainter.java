@@ -12,13 +12,10 @@ import com.fabricplots.protect.PortalManager;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.ShelfBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Half;
@@ -65,19 +62,21 @@ public final class PlotWorldPainter {
     private static final BlockState TREE_TRAPDOOR = Blocks.OAK_TRAPDOOR.defaultBlockState()
             .setValue(BlockStateProperties.OPEN, true).setValue(BlockStateProperties.HALF, Half.BOTTOM);
 
-    // Bench material pools — each bench picks one shelf wood + one trapdoor wood (kept internally consistent).
+    // Bench material pools — each bench picks one stair wood + one trapdoor wood (kept internally
+    // consistent). 1.21.1 note: shelf blocks don't exist yet (they're 26.x-era), so bench arms use
+    // wood STAIRS instead; pale oak doesn't exist either (1.21.4+), so it's out of both pools.
     private static final BlockState[] SHELVES = {
-            Blocks.OAK_SHELF.defaultBlockState(), Blocks.SPRUCE_SHELF.defaultBlockState(),
-            Blocks.BIRCH_SHELF.defaultBlockState(), Blocks.JUNGLE_SHELF.defaultBlockState(),
-            Blocks.ACACIA_SHELF.defaultBlockState(), Blocks.DARK_OAK_SHELF.defaultBlockState(),
-            Blocks.MANGROVE_SHELF.defaultBlockState(), Blocks.CHERRY_SHELF.defaultBlockState(),
-            Blocks.PALE_OAK_SHELF.defaultBlockState(), Blocks.BAMBOO_SHELF.defaultBlockState() };
+            Blocks.OAK_STAIRS.defaultBlockState(), Blocks.SPRUCE_STAIRS.defaultBlockState(),
+            Blocks.BIRCH_STAIRS.defaultBlockState(), Blocks.JUNGLE_STAIRS.defaultBlockState(),
+            Blocks.ACACIA_STAIRS.defaultBlockState(), Blocks.DARK_OAK_STAIRS.defaultBlockState(),
+            Blocks.MANGROVE_STAIRS.defaultBlockState(), Blocks.CHERRY_STAIRS.defaultBlockState(),
+            Blocks.BAMBOO_STAIRS.defaultBlockState() };
     private static final BlockState[] TRAPDOORS = {
             Blocks.OAK_TRAPDOOR.defaultBlockState(), Blocks.SPRUCE_TRAPDOOR.defaultBlockState(),
             Blocks.BIRCH_TRAPDOOR.defaultBlockState(), Blocks.JUNGLE_TRAPDOOR.defaultBlockState(),
             Blocks.ACACIA_TRAPDOOR.defaultBlockState(), Blocks.DARK_OAK_TRAPDOOR.defaultBlockState(),
             Blocks.MANGROVE_TRAPDOOR.defaultBlockState(), Blocks.CHERRY_TRAPDOOR.defaultBlockState(),
-            Blocks.PALE_OAK_TRAPDOOR.defaultBlockState(), Blocks.BAMBOO_TRAPDOOR.defaultBlockState() };
+            Blocks.BAMBOO_TRAPDOOR.defaultBlockState() };
 
 
     @FunctionalInterface
@@ -107,28 +106,9 @@ public final class PlotWorldPainter {
     private static final boolean TREES = false;
     private static final boolean BENCHES = false;
 
-    public static void onGenerate(ServerLevel level, LevelChunk chunk) {
-        if (level.dimension() != FabricPlots.PLOTS_DIM) return;
-        if (DISABLE_PAINTER) return;
-        final int baseX = chunk.getPos().getMinBlockX();
-        final int baseZ = chunk.getPos().getMinBlockZ();
-        final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        final Setter setter = (x, y, z, s) -> { pos.set(x, y, z); chunk.setBlockState(pos, s); };
-        try {
-            // No tall airspace clear during generation (the flat base is already air above) — keep it light.
-            for (int dx = 0; dx < 16; dx++)
-                for (int dz = 0; dz < 16; dz++) paintBase(baseX + dx, baseZ + dz, setter, false);
-            if (GEN_FURNITURE)
-                for (int dx = 0; dx < 16; dx++)
-                    for (int dz = 0; dz < 16; dz++) decorate(baseX + dx, baseZ + dz, setter);
-        } catch (Throwable t) {
-            if (!loggedError) {
-                loggedError = true;
-                System.out.println("[FabricPlots] painter error during CHUNK_GENERATE: " + t);
-                t.printStackTrace();
-            }
-        }
-    }
+    // NOTE(1.21.1): there is no CHUNK_GENERATE event on this Fabric API (26.x addition), so there is
+    // no onGenerate here — roads are painted together with the furniture in processPending, on a
+    // chunk's first-ever load (tracked by the persisted decorated-chunks record).
 
     public static int repaint(ServerLevel level, int centerX, int centerZ, int radius) {
         final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -361,6 +341,10 @@ public final class PlotWorldPainter {
             final int baseX = ((int) (key >> 32)) << 4;
             final int baseZ = ((int) (long) key) << 4;
             try {
+                // 1.21.1: base painting happens here too (no CHUNK_GENERATE event on this version) —
+                // the flat generator made plain grass, so carve the roads on the chunk's first load.
+                for (int dx = 0; dx < 16; dx++)
+                    for (int dz = 0; dz < 16; dz++) paintBase(baseX + dx, baseZ + dz, setter, false);
                 for (int dx = 0; dx < 16; dx++)
                     for (int dz = 0; dz < 16; dz++) decorate(baseX + dx, baseZ + dz, setter);
             } catch (Throwable t) {
@@ -520,8 +504,8 @@ public final class PlotWorldPainter {
 
         final int adx = vertical ? 0 : 1;   // arm offset along the street
         final int adz = vertical ? 1 : 0;
-        setter.set(x - adx, y, z - adz, shelf.setValue(ShelfBlock.FACING, road));
-        setter.set(x + adx, y, z + adz, shelf.setValue(ShelfBlock.FACING, road));
+        setter.set(x - adx, y, z - adz, shelf.setValue(BlockStateProperties.HORIZONTAL_FACING, road));
+        setter.set(x + adx, y, z + adz, shelf.setValue(BlockStateProperties.HORIZONTAL_FACING, road));
 
         // Seat (flat trapdoor) at the centre, back (upright trapdoor) one block toward the plot.
         setter.set(x, y, z, td.setValue(BlockStateProperties.OPEN, false).setValue(BlockStateProperties.HALF, Half.TOP));
