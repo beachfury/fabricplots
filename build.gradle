@@ -1,9 +1,11 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version '1.17.12'
+    // Loom 1.17: 'net.fabricmc.fabric-loom' is the NO-REMAP variant (26.x unobfuscated);
+    // obfuscated targets like 1.21.1 need the -remap plugin id.
+    id 'net.fabricmc.fabric-loom-remap' version '1.17.12'
     id 'java'
 }
 
-// Jar name carries the Minecraft target, e.g. fabricplots-0.1.0+26.1.2.jar (Fabric convention).
+// Jar name carries the Minecraft target, e.g. fabricplots-0.5.0+1.21.1.jar (Fabric convention).
 version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
@@ -12,49 +14,55 @@ base {
 }
 
 repositories {
-    // For sgui (added in v1.1). Harmless to leave here now.
+    // For sgui / placeholder-api / common-economy-api.
     maven { url = 'https://maven.nucleoid.xyz' }
     // For the DraftSmith editor jar — built locally: run publishToMavenLocal in draftsmith-mod.
     mavenLocal()
 }
 
 dependencies {
-    // Minecraft 26.x is shipped unobfuscated with official Mojang names —
-    // NO 'mappings' line; Loom 1.17 handles it. (See minecraft-26-fabric-toolchain notes.)
+    // 1.21.1 ships obfuscated — official Mojang mappings restore the names this code is written in.
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
 
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Must also be present at
-    // runtime — sgui-2.0.0+26.1.jar goes in the server's mods folder alongside this mod.
-    implementation "eu.pb4:sgui:2.0.0+26.1"
+    // runtime — sgui-1.6.1+1.21.1.jar goes in the server's mods folder alongside this mod.
+    modImplementation "eu.pb4:sgui:1.6.1+1.21.1"
 
     // The build editor (shapes, brushes, measure, clipboard, undo) — our own DraftSmith mod,
     // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing. The +MC suffix
     // tracks this branch's minecraft_version automatically.
-    implementation "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
+    //
+    // TODO(1.21.1 port): 0.0.0-stub is a LOCAL PLACEHOLDER — API classes with no-op bodies,
+    // published to mavenLocal from C:\Users\rcham\AppData\Local\Temp\claude\draftsmith-stub-1211.
+    // The real DraftSmith 1.21.1 build MUST replace it (set draftsmith_version back to a real
+    // version) before any release; with the stub bundled the mod runs, but the editor
+    // (/plot edit, editwand, brushes, tape…) is completely inert.
+    modImplementation "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
     include "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
 
     // Optional economy integration — Patbox's Common Economy API (same maven as sgui). compileOnly:
     // NOT bundled and NOT required. It's provided at runtime only if the server runs a Common Economy
     // provider (e.g. Savs Common Economy). FabricPlots runs fine without it; economy is off by default.
-    compileOnly "eu.pb4:common-economy-api:2.0.0"
+    modCompileOnly "eu.pb4:common-economy-api:1.2.1"
 
     // Optional Placeholder API integration (same maven). compileOnly: %fabricplots:*% placeholders
     // register only when the placeholder-api mod is present at runtime.
-    compileOnly "eu.pb4:placeholder-api:3.0.0+26.1"
+    modCompileOnly "eu.pb4:placeholder-api:2.4.2+1.21"
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
     withSourcesJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
-    it.options.release = 25
+    it.options.release = 21
 }
 
 processResources {
