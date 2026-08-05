@@ -26,9 +26,11 @@ dependencies {
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Must also be present at
-    // runtime — sgui-2.0.0+26.1.jar goes in the server's mods folder alongside this mod.
+    // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Jar-in-Jar bundled
+    // since 0.5.0 — server owners no longer install sgui separately (LGPL; JiJ is Patbox's
+    // recommended distribution; the loader dedupes if another mod bundles it too).
     implementation "eu.pb4:sgui:2.1.0+26.2"
+    include "eu.pb4:sgui:2.1.0+26.2"
 
     // The build editor (shapes, brushes, measure, clipboard, undo) — our own DraftSmith mod,
     // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing. The +MC suffix
