@@ -36,11 +36,9 @@ dependencies {
     // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing. The +MC suffix
     // tracks this branch's minecraft_version automatically.
     //
-    // TODO(1.21.1 port): 0.0.0-stub is a LOCAL PLACEHOLDER — API classes with no-op bodies,
-    // published to mavenLocal from C:\Users\rcham\AppData\Local\Temp\claude\draftsmith-stub-1211.
-    // The real DraftSmith 1.21.1 build MUST replace it (set draftsmith_version back to a real
-    // version) before any release; with the stub bundled the mod runs, but the editor
-    // (/plot edit, editwand, brushes, tape…) is completely inert.
+    // Real DraftSmith 1.21.1 from mavenLocal (publishToMavenLocal in the draftsmith-mod repo).
+    // The port was first built against a no-op compile stub; swapped for the real 0.1.0 build
+    // on 2026-08-04 once DraftSmith's own 1.21.1 port landed.
     modImplementation "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
     include "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
 
