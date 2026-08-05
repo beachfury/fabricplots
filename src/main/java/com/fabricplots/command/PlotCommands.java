@@ -94,6 +94,7 @@ public final class PlotCommands {
                         .then(Commands.argument("player", GameProfileArgument.gameProfile())
                                 .executes(PlotCommands::removeAll)))
                 .then(Commands.literal("menu").executes(PlotCommands::menu))
+                .then(Commands.literal("edit").executes(PlotCommands::listPlots)) // manage your plots — the build editor is /draft edit
                 .then(Commands.literal("list").executes(PlotCommands::listPlots))
                 .then(Commands.literal("sethome").executes(PlotCommands::setHome))
                 .then(Commands.literal("admin").executes(PlotCommands::adminMode))
@@ -105,7 +106,9 @@ public final class PlotCommands {
                         .then(Commands.argument("player", GameProfileArgument.gameProfile())
                                 .executes(PlotCommands::setOwner)))
                 .then(Commands.literal("version").executes(PlotCommands::version));
-        com.draftsmith.command.DraftCommands.attach(root, bc); // editor commands — the bundled DraftSmith editor
+        // Editor commands from the bundled DraftSmith editor — skip "edit" so /plot edit stays
+        // plot management (My Plots); the build-editor hub lives at /draft edit.
+        com.draftsmith.command.DraftCommands.attach(root, bc, Set.of("edit"));
         d.register(root);
 
         // Convenience alias; becomes the clickable sgui menu in v1.1.

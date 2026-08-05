@@ -52,7 +52,7 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   risk, no WorldEdit region setup. (Since 0.5.0 the editor is our standalone
   [DraftSmith](https://github.com/beachfury/draftsmith) mod, bundled inside the jar — nothing extra to
   install, same tools, same `/plot` commands.)
-- **Editor hub with Shapes & Measure screens** — `/plot edit` opens a quick-bar hub (corners, clipboard,
+- **Editor hub with Shapes & Measure screens** — `/draft edit` (or just `/draft`) opens a quick-bar hub (corners, clipboard,
   fill/walls, stack/move, undo/redo) with doors into two dedicated screens (`/plot measure` jumps
   straight to the measuring tools). **Shapes**: circle, square,
   sphere, cylinder, pyramid, and a 3D diagonal **line tool**, each filled or hollow (ring / frame /
@@ -71,7 +71,7 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   the blocks in your hotbar randomly: lay natural-looking paths without ever scrolling. Duplicate slots
   weight the mix; in survival the cost comes from the stack that actually got placed.
 - **Clickable menus (sgui, crossplay)** — `/plot menu` (hub with **Claim a Plot**, My Plots, Build Editor, Portal
-  Keys, **Browse Plots**, Top Plots), `/plot edit` (build GUI; material = the block in your hand), and per-plot
+  Keys, **Browse Plots**, Top Plots), `/plot edit` (**My Plots** — browse and manage the plots you own), and per-plot
   settings: rename, floor-block picker, sidewalk & wall designers, sky & weather, greeting, PvP toggle, transfer,
   kick visitors, and trusted/denied management with player heads + name search. Claiming works from the menu
   too — no commands required.
@@ -94,7 +94,7 @@ again for **corner 2** — clicks keep alternating 1 → 2 → 1, and a green pa
 selection. The wand never breaks blocks. Prefer standing? `/plot pos1` and `/plot pos2` set a corner
 where you stand.
 
-**`/plot edit`** (or just **`/draft`**) opens the **editor hub** — a chest GUI with a button for
+**`/draft edit`** (or just **`/draft`**) opens the **editor hub** — a chest GUI with a button for
 everything below, plus doors into three screens: **Shapes** (circle, square, sphere, cylinder, pyramid
 and line with size/height/thickness/repeat dials), **Brushes** (pick and configure the 11 paint
 brushes), and **Measure** (live selection readout, find-center, measuring tapes — or jump straight
@@ -123,10 +123,12 @@ its own preset — rename them at an anvil and swap like a painter.
 | `/plot measure` | Open the measuring screen |
 | `/plot undo` / `redo` | Step your edits back / forward (10 deep) |
 | `/plot brush` | Get a paint brush |
-| `/plot edit` | Open the editor hub |
+| `/draft edit` | Open the editor hub |
 
 Every command in the table also exists as **`/draft <command>`** — same tools, either root (and anyone
-running DraftSmith standalone gets the `/draft` set on any world). Inside FabricPlots every block the
+running DraftSmith standalone gets the `/draft` set on any world). The one exception is `edit`:
+**`/plot edit`** opens **My Plots** (plot management), so the editor hub lives at `/draft edit` /
+`/draft` only. Inside FabricPlots every block the
 editor writes is **ownership-checked**, so no edit can touch a road or a plot you can't build on.
 
 ## Requirements
