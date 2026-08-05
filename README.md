@@ -136,7 +136,7 @@ A Fabric server on **Minecraft 26.1.2 or 26.2** (see [Versions](#versions)) with
 | Mod | Notes |
 |-----|-------|
 | `fabricplots-x.x.x.jar` | this mod |
-| **sgui** | **required** — the clickable menus ([maven.nucleoid.xyz](https://maven.nucleoid.xyz)). Use the build that matches your MC version (see Versions) |
+| **sgui** | **bundled inside FabricPlots since 0.5.0** — nothing to install |
 | Fabric API | the build for your MC version |
 
 For Bedrock players: **Geyser** + **Floodgate** (Geyser connects directly to 26.1.x / 26.2 — no ViaProxy).
