@@ -24,6 +24,9 @@ The editor is now its own mod — bundled, so you notice nothing.
 - `/plot help` no longer lists the editor commands (its "Building" section) — they belong to
   DraftSmith now, which documents its own tools. The commands themselves still work under `/plot`
   exactly as before.
+- **`/plot edit` now opens My Plots** — browse and manage the plots you own, same screen as
+  `/plot list`. The build-editor hub lives at `/draft` / `/draft edit`: `/plot` manages plots,
+  `/draft` builds. Every other editor command still works under both roots.
 
 ## [0.4.0] — 2026-07-31
 
