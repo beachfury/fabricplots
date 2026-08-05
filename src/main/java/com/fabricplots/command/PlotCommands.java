@@ -105,7 +105,7 @@ public final class PlotCommands {
                         .then(Commands.argument("player", GameProfileArgument.gameProfile())
                                 .executes(PlotCommands::setOwner)))
                 .then(Commands.literal("version").executes(PlotCommands::version));
-        com.draftsmith.command.DraftCommands.attach(root, bc); // editwand … tape — the bundled DraftSmith editor
+        com.draftsmith.command.DraftCommands.attach(root, bc); // editor commands — the bundled DraftSmith editor
         d.register(root);
 
         // Convenience alias; becomes the clickable sgui menu in v1.1.
@@ -284,7 +284,6 @@ public final class PlotCommands {
         section(src, "Building");
         line(src, "/plot edit", "open the build GUI");
         line(src, "/plot measure", "open the measuring tools");
-        line(src, "/plot editwand", "get the selection wand");
         line(src, "/plot brush", "get a paint brush (sneak-click to configure)");
         line(src, "/plot pos1", "set selection corner 1");
         line(src, "/plot pos2", "set selection corner 2");
