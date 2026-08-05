@@ -19,5 +19,8 @@
     "java": ">=21",
     "sgui": "*",
     "draftsmith": "*"
+  },
+  "suggests": {
+    "fabric-permissions-api-v0": "*"
   }
 }

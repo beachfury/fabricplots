@@ -18,6 +18,8 @@ repositories {
     maven { url = 'https://maven.nucleoid.xyz' }
     // For the DraftSmith editor jar — built locally: run publishToMavenLocal in draftsmith-mod.
     mavenLocal()
+    // For fabric-permissions-api (soft dependency — permission nodes when LuckPerms etc. is present).
+    mavenCentral()
 }
 
 dependencies {
@@ -52,6 +54,13 @@ dependencies {
     // Optional Placeholder API integration (same maven). compileOnly: %fabricplots:*% placeholders
     // register only when the placeholder-api mod is present at runtime.
     modCompileOnly "eu.pb4:placeholder-api:2.4.2+1.21"
+
+    // Optional permissions integration — fabric-permissions-api (the check API LuckPerms and
+    // friends implement). Soft dependency, same as DraftSmith: nodes activate only when a
+    // permissions mod is present; without one, every default applies and behavior is exactly as
+    // before. 0.3.3 is the 1.21-era intermediary-mapped artifact via modCompileOnly (26.x:
+    // compileOnly 0.7.0).
+    modCompileOnly "me.lucko:fabric-permissions-api:0.3.3"
 }
 
 java {

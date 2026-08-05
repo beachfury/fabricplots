@@ -1,6 +1,6 @@
 # FabricPlots
 
-A **server-side**, PlotSquared-style plot world for **Fabric / Minecraft 26.1.2 & 26.2**, built for **Java + Bedrock
+A **server-side**, PlotSquared-style plot world for **Fabric / Minecraft 26.1.2, 26.2 & 1.21.1**, built for **Java + Bedrock
 crossplay** (Geyser/Floodgate). Nothing is required on the client — Bedrock players use every command and menu
 through Geyser. Drop the jar on the server and you have a full creative plot server.
 
@@ -49,7 +49,7 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
 - **Build tools — a "WorldEdit-lite" that's jailed to your plot.** `set`, `replace`, `walls`, `sphere`,
   `hsphere`, `cyl`, `disc`, `ring`, `line`, `copy`, `cut`, `paste`, `stack`, `move`, `undo`, `redo` — every
   block written is ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing
-  risk, no WorldEdit region setup. (Since 0.5.0 the editor is our standalone
+  risk, no WorldEdit region setup. (Since 1.0.0 the editor is our standalone
   [DraftSmith](https://github.com/beachfury/draftsmith) mod, bundled inside the jar — nothing extra to
   install, same tools, same `/plot` commands.)
 - **Editor hub with Shapes & Measure screens** — `/draft edit` (or just `/draft`) opens a quick-bar hub (corners, clipboard,
@@ -133,12 +133,12 @@ editor writes is **ownership-checked**, so no edit can touch a road or a plot yo
 
 ## Requirements
 
-A Fabric server on **Minecraft 26.1.2 or 26.2** (see [Versions](#versions)) with, in the `mods/` folder:
+A Fabric server on **Minecraft 26.1.2, 26.2 or 1.21.1** (see [Versions](#versions)) with, in the `mods/` folder:
 
 | Mod | Notes |
 |-----|-------|
 | `fabricplots-x.x.x.jar` | this mod |
-| **sgui** | **bundled inside FabricPlots since 0.5.0** — nothing to install |
+| **sgui** | **bundled inside FabricPlots since 1.0.0** — nothing to install |
 | Fabric API | the build for your MC version |
 
 For Bedrock players: **Geyser** + **Floodgate** (Geyser connects directly to 26.1.x / 26.2 — no ViaProxy).
@@ -177,6 +177,47 @@ world keeps its own items.
 > gives you a key for every plot you own, created right in your main-world inventory. `/plot menu` and `/plot list`
 > also open from any world.
 
+## Permissions
+
+FabricPlots integrates with **[fabric-permissions-api](https://github.com/lucko/fabric-permissions-api)** —
+the check API implemented by LuckPerms and friends — as a **soft dependency**: nothing is bundled or
+required, and **without a permissions mod everything behaves exactly as before** (player features
+allowed for everyone, staff commands ops-only). With one installed, these nodes apply:
+
+**Player nodes** — default **allowed**; deny a node to take the feature away:
+
+| Node | Gates |
+|------|-------|
+| `fabricplots.claim` | `/plot claim`, `/plot auto`, the menu's Claim buttons |
+| `fabricplots.merge` | `/plot wand`, `/plot combine`, `/plot uncombine` (ops bypass; `allow-player-combine` still applies) |
+| `fabricplots.transfer` | `/plot transfer`, the Transfer plot button |
+| `fabricplots.kick` | `/plot kick`, the Kick visitors button |
+| `fabricplots.clear` | `/plot clear`, the Clear plot button |
+| `fabricplots.delete` | `/plot delete` |
+| `fabricplots.rename` | `/plot name`, the Rename plot button |
+| `fabricplots.like` | `/plot like`, the Like button |
+| `fabricplots.visit` | `/plot visit`, the Visit button |
+| `fabricplots.portal` | `/plot key`, the Portal Keys button |
+| `fabricplots.biome` | the per-plot Biome picker |
+| `fabricplots.ambience` | the Sky & weather picker |
+| `fabricplots.floor` | the Floor block picker |
+| `fabricplots.designer` | the Sidewalk & Wall designers |
+| `fabricplots.mobs` | the per-plot Mob spawning toggles |
+| `fabricplots.pvp` | the per-plot PvP toggle |
+| `fabricplots.greeting` | the Greeting editor |
+
+**Staff nodes** — default **ops only** (OP level 2, or the single-player host); grant one to give a
+non-op that tool, deny it to take it from an op:
+
+`fabricplots.admin` (`/plot admin`), `fabricplots.setspawn`, `fabricplots.reload`,
+`fabricplots.removeall`, `fabricplots.setowner`, `fabricplots.setserver`, `fabricplots.repaint`,
+`fabricplots.portals`
+
+**Claim limits** — the numeric nodes `fabricplots.limit.1` … `fabricplots.limit.64` set a
+per-player/per-group plot limit: the **highest granted node wins** and overrides the config
+`claim-limit`; players with none granted use the config value (`0` = unlimited, ops are exempt
+as always).
+
 ## Building from source
 
 Requires **JDK 25**. Minecraft 26.x ships unobfuscated (official Mojang names, no `mappings` line; uses the `jar`
@@ -190,13 +231,14 @@ Output: `build/libs/fabricplots-<version>.jar`.
 
 ## Versions
 
-Both supported Minecraft versions are tracked as branches — **identical features**, differing only in version
-numbers and a few renamed vanilla blocks:
+Each supported Minecraft version is tracked as a branch — **identical features**, differing only in version
+numbers, toolchain (1.21.1 is obfuscated: JDK 21 + mojmap) and a few renamed vanilla blocks:
 
 | Branch | Minecraft | Fabric API | sgui |
 |--------|-----------|------------|------|
 | [`main`](../../tree/main) | 26.1.2 | `0.145.4+26.1.2` | `2.0.0+26.1` |
 | [`26.2`](../../tree/26.2) | 26.2 | `0.153.0+26.2` | `2.1.0+26.2` |
+| [`1.21.1`](../../tree/1.21.1) | 1.21.1 | `0.116.15+1.21.1` | `1.6.1+1.21.1` |
 
 ## License
 
