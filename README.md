@@ -85,6 +85,50 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   (e.g. [Savs Common Economy](https://modrinth.com/mod/savs-common-economy)) — and it's a soft dependency, so
   FabricPlots runs fine without one.
 
+## Using the build editor (DraftSmith)
+
+The editor has its own command root, so `/plot help` sticks to plots — here's how the build tools work.
+First, **get the wand**: **`/draft wand`** (alias `/draft editwand`) hands you the **Editor Wand**, a
+wooden axe you can safely rename at an anvil. **Right-click** a block to set **corner 1**, right-click
+again for **corner 2** — clicks keep alternating 1 → 2 → 1, and a green particle outline shows the live
+selection. The wand never breaks blocks. Prefer standing? `/plot pos1` and `/plot pos2` set a corner
+where you stand.
+
+**`/plot edit`** (or just **`/draft`**) opens the **editor hub** — a chest GUI with a button for
+everything below, plus doors into three screens: **Shapes** (circle, square, sphere, cylinder, pyramid
+and line with size/height/thickness/repeat dials), **Brushes** (pick and configure the 11 paint
+brushes), and **Measure** (live selection readout, find-center, measuring tapes — or jump straight
+there with `/plot measure`).
+
+**`/plot brush`** hands you a **paint brush**: **sneak + right-click** opens its settings,
+**right-click** paints where you aim. Settings are stored on the brush item itself, so each brush is
+its own preset — rename them at an anvil and swap like a painter.
+
+| Command | What it does |
+| --- | --- |
+| `/plot pos1` / `pos2` | Set a selection corner where you stand |
+| `/plot set <block>` | Fill the selection |
+| `/plot replace <from> <to>` | Replace only matching blocks in the selection |
+| `/plot walls <block>` | Perimeter walls around the selection |
+| `/plot copy` / `cut` / `paste` | Clipboard — paste lands where you aim |
+| `/plot stack <n>` | Repeat the selection along your facing (1–64 times) |
+| `/plot move <n>` | Shift the selection along your facing (1–256 blocks) |
+| `/plot sphere` / `hsphere <block> <radius>` | Solid / hollow sphere at your feet (radius 1–32) |
+| `/plot cyl <block> <radius> [height]` | Cylinder (radius 1–32, height up to 256) |
+| `/plot disc <block> <size> [height]` | Flat disc where you aim (size up to 256) |
+| `/plot ring <block> <size> [height]` | Hollow ring where you aim |
+| `/plot line <block> [thickness]` | Corner-to-corner 3D line (thickness 1–8) |
+| `/plot center` | Gold-mark the middle of the corner1 → corner2 line |
+| `/plot tape` / `tape clear` | Numbered measuring tape between corners / remove tapes |
+| `/plot measure` | Open the measuring screen |
+| `/plot undo` / `redo` | Step your edits back / forward (10 deep) |
+| `/plot brush` | Get a paint brush |
+| `/plot edit` | Open the editor hub |
+
+Every command in the table also exists as **`/draft <command>`** — same tools, either root (and anyone
+running DraftSmith standalone gets the `/draft` set on any world). Inside FabricPlots every block the
+editor writes is **ownership-checked**, so no edit can touch a road or a plot you can't build on.
+
 ## Requirements
 
 A Fabric server on **Minecraft 26.1.2 or 26.2** (see [Versions](#versions)) with, in the `mods/` folder:
