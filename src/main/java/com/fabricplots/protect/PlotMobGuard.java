@@ -40,7 +40,16 @@ public final class PlotMobGuard {
             if (!(entity instanceof Mob mob) || mob.hasCustomName()) return;
             BlockPos pos = mob.blockPosition();
             PlotData d = PlotManager.owningPlot(pos.getX(), pos.getZ());
-            if (d == null) return;
+            if (d == null) {
+                // Streets are no-spawn land. A plot biome's 4-block bleed reaches road columns,
+                // so nether/hostile biomes would otherwise spawn mobs ON the street. Unclaimed
+                // plot interiors keep their mobs (isInsidePlot but no owner) — only the street
+                // band (roads, curbs, stairs) culls on sight. Same test StreetSweeper uses.
+                if (!PlotManager.isInsidePlot(pos.getX(), pos.getZ())) {
+                    world.getServer().execute(mob::discard); // next tick — never mid-load
+                }
+                return;
+            }
             // The owner's spawn toggles: cull disallowed categories the moment they appear
             // (covers natural spawns AND mobs re-loaded from disk after the toggle changed).
             if (!allowed(d, mob)) {
@@ -112,8 +121,12 @@ public final class PlotMobGuard {
                 if (here != null) {
                     HOME.put(mob.getUUID(), mob.blockPosition().immutable());
                     Compat.setHome(mob, mob.blockPosition(), HOME_RADIUS);
+                } else if (!PlotManager.isInsidePlot(mob.getBlockX(), mob.getBlockZ())) {
+                    // Streets are no-spawn land: an untracked mob standing on the street band
+                    // goes immediately instead of waiting minutes for the unnamed-mob cleanup.
+                    mob.discard();
                 }
-                continue; // road mobs stay untracked; the unnamed-mob cleanup culls them
+                continue; // unclaimed-plot mobs stay untracked; the unnamed-mob cleanup culls them
             }
             PlotData homePlot = PlotManager.owningPlot(home.getX(), home.getZ());
             if (homePlot == null) { HOME.remove(mob.getUUID()); continue; } // plot was deleted
