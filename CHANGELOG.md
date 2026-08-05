@@ -3,9 +3,32 @@
 All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
 (`/plot version` reports the current build stamp).
 
-## [0.5.0] — 2026-08-04
+## [1.0.0] — 2026-08-05
 
-The editor is now its own mod — bundled, so you notice nothing.
+Two mods, one toolkit — and Minecraft 1.21.1 support.
+
+### Added
+- **Minecraft 1.21.1 support.** FabricPlots now runs on 1.21.1 (Java 21, mojmap) as its own branch —
+  same features as the 26.x builds. One caveat: the `protect-explosions` config can't gate **TNT**
+  on 1.21.1, because that version has no `tntExplodes` gamerule (26.x does); the containment rules
+  (fluids, pistons, self-healing streets) still apply.
+- **sgui is bundled (Jar-in-Jar) — one-jar install.** The GUI library ships inside the FabricPlots
+  jar, so server owners no longer download it separately; the loader dedupes if another mod bundles
+  it too.
+- **Permissions (optional, via [fabric-permissions-api](https://github.com/lucko/fabric-permissions-api)).**
+  Every player-facing feature and every staff command now checks a `fabricplots.*` node when a
+  permissions mod (LuckPerms etc.) is present — see the README's **Permissions** section for the
+  full node list. Player nodes default to *allowed* and staff nodes to *ops only*, so **without a
+  permissions mod nothing changes**. Per-player claim limits come from the numeric nodes
+  `fabricplots.limit.1` … `fabricplots.limit.64` (highest granted wins, overriding the config
+  `claim-limit`).
+
+### Fixed
+- **Spawn toggles also clear street stragglers.** Turning a plot's hostile/passive spawns off now
+  removes that plot's mobs that had wandered onto the street, and the boundary sweep despawns
+  escapees whose home plot no longer allows them.
+- **Streets are no-spawn land.** Biome bleed onto roads no longer produces street mobs, and the
+  sweep clears untracked street mobs immediately.
 
 ### Changed
 - **The build editor became [DraftSmith](https://github.com/beachfury/draftsmith).** The whole

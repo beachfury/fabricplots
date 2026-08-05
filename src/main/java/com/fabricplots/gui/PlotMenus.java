@@ -1,6 +1,7 @@
 package com.fabricplots.gui;
 
 import com.fabricplots.compat.Compat;
+import com.fabricplots.compat.Perms;
 
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotConfig;
@@ -49,6 +50,17 @@ public final class PlotMenus {
 
     private PlotMenus() {}
 
+    /**
+     * GUI permission gate (fabric-permissions-api, soft): allowed unless a permissions mod denies
+     * the node — checked on click, message on deny, and the current menu stays open. Without a
+     * permissions mod everything is allowed, exactly the pre-1.0.0 behavior.
+     */
+    private static boolean allowed(ServerPlayer sp, String node) {
+        if (Perms.check(sp, node, true)) return true;
+        sp.sendSystemMessage(Component.literal("[Plots] You don't have permission for that."));
+        return false;
+    }
+
     // ---- hub -------------------------------------------------------------
 
     public static void hub(ServerPlayer sp) {
@@ -65,6 +77,7 @@ public final class PlotMenus {
             } else com.draftsmith.gui.DraftEditGui.open(sp);
         }));
         g.setSlot(14, btn(Items.RECOVERY_COMPASS, "Portal Keys", "A key for each plot you own — usable at your base.", (i, t, a, gg) -> {
+            if (!allowed(sp, "fabricplots.portal")) return;
             g.close();
             int n = 0;
             for (PlotData d : PlotManager.allPlots()) {
@@ -130,16 +143,17 @@ public final class PlotMenus {
         String title = d.name.isBlank() ? "Plot " + anchor.px() + ", " + anchor.pz() : d.name;
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x4, sp, false);
         g.setTitle(Component.literal(title));
-        g.setSlot(10, btn(Items.NAME_TAG, "Rename plot", "Currently: " + (d.name.isBlank() ? "(unnamed)" : d.name), (i, t, a, gg) ->
-                anvil(sp, "Plot name", d.name, txt -> { d.name = clean(txt); PlotManager.save(); settings(sp, anchor); })));
+        g.setSlot(10, btn(Items.NAME_TAG, "Rename plot", "Currently: " + (d.name.isBlank() ? "(unnamed)" : d.name), (i, t, a, gg) -> {
+                if (!allowed(sp, "fabricplots.rename")) return;
+                anvil(sp, "Plot name", d.name, txt -> { d.name = clean(txt); PlotManager.save(); settings(sp, anchor); }); }));
         g.setSlot(11, btn(floorItem(d), "Floor block", "Currently: " + floorName(d) + ". Click to recolor your plot's ground.",
-                (i, t, a, gg) -> floorPicker(sp, anchor, 0)));
+                (i, t, a, gg) -> { if (allowed(sp, "fabricplots.floor")) floorPicker(sp, anchor, 0); }));
         g.setSlot(12, btn(Items.CHISELED_TUFF_BRICKS, "Sidewalk designer",
                 "Design your sidewalk from any blocks — the pattern repeats along every edge.",
-                (i, t, a, gg) -> PlotDesignerGui.openSidewalk(sp, anchor, () -> settings(sp, anchor))));
+                (i, t, a, gg) -> { if (allowed(sp, "fabricplots.designer")) PlotDesignerGui.openSidewalk(sp, anchor, () -> settings(sp, anchor)); }));
         g.setSlot(13, btn(Items.COBBLESTONE_WALL, "Wall designer",
                 "Design a wall (up to 3 tall) around your plot's edge.",
-                (i, t, a, gg) -> PlotDesignerGui.openWall(sp, anchor, () -> settings(sp, anchor))));
+                (i, t, a, gg) -> { if (allowed(sp, "fabricplots.designer")) PlotDesignerGui.openWall(sp, anchor, () -> settings(sp, anchor)); }));
         g.setSlot(14, btn(Items.PLAYER_HEAD, "Trusted (" + d.trusted.size() + ")", "People who can build here.", (i, t, a, gg) -> members(sp, anchor, false, 0)));
         g.setSlot(15, btn(Items.IRON_BARS, "Denied (" + d.denied.size() + ")", "People banned from this plot.", (i, t, a, gg) -> members(sp, anchor, true, 0)));
         g.setSlot(16, btn(Items.ENDER_PEARL, "Teleport here", "Go to this plot.", (i, t, a, gg) -> {
@@ -149,29 +163,33 @@ public final class PlotMenus {
         }));
         g.setSlot(19, btn(d.pvp ? Items.DIAMOND_SWORD : Items.SHIELD, "PvP: " + (d.pvp ? "ON" : "OFF"),
                 d.pvp ? "Players can fight here. Click to make it safe." : "This plot is safe. Click to allow PvP.",
-                (i, t, a, gg) -> { d.pvp = !d.pvp; PlotManager.save(); settings(sp, anchor); }));
+                (i, t, a, gg) -> { if (!allowed(sp, "fabricplots.pvp")) return; d.pvp = !d.pvp; PlotManager.save(); settings(sp, anchor); }));
         g.setSlot(20, btn(Items.CLOCK, "Sky & weather",
                 ambienceLabel(d) + " — what visitors see while on your plot.",
-                (i, t, a, gg) -> ambiencePicker(sp, anchor)));
+                (i, t, a, gg) -> { if (allowed(sp, "fabricplots.ambience")) ambiencePicker(sp, anchor); }));
         g.setSlot(21, btn(Items.WRITABLE_BOOK, "Greeting",
                 d.greeting.isBlank() ? "Set a custom welcome for visitors." : "Currently: \"" + d.greeting + "\"",
-                (i, t, a, gg) -> anvil(sp, "Greeting (visitors see this)", d.greeting, txt -> {
-                    d.greeting = clean(txt); PlotManager.save(); settings(sp, anchor);
-                })));
-        g.setSlot(22, btn(Items.ENDER_EYE, "Transfer plot", "Give this plot to another player.", (i, t, a, gg) -> transferPicker(sp, anchor, 0)));
+                (i, t, a, gg) -> { if (!allowed(sp, "fabricplots.greeting")) return;
+                    anvil(sp, "Greeting (visitors see this)", d.greeting, txt -> {
+                        d.greeting = clean(txt); PlotManager.save(); settings(sp, anchor);
+                    }); }));
+        g.setSlot(22, btn(Items.ENDER_EYE, "Transfer plot", "Give this plot to another player.",
+                (i, t, a, gg) -> { if (allowed(sp, "fabricplots.transfer")) transferPicker(sp, anchor, 0); }));
         g.setSlot(23, btn(Items.FEATHER, "Kick visitors", "Send everyone else on this plot to spawn.", (i, t, a, gg) -> {
+            if (!allowed(sp, "fabricplots.kick")) return;
             int n = kickVisitors(sp, d);
             sp.sendSystemMessage(Component.literal("[Plots] Sent " + n + " visitor" + (n == 1 ? "" : "s") + " to spawn."));
             settings(sp, anchor);
         }));
-        g.setSlot(24, btn(Items.TNT, "Clear plot", "Reset every block to flat ground.", (i, t, a, gg) -> confirmClear(sp, anchor)));
+        g.setSlot(24, btn(Items.TNT, "Clear plot", "Reset every block to flat ground.",
+                (i, t, a, gg) -> { if (allowed(sp, "fabricplots.clear")) confirmClear(sp, anchor); }));
         g.setSlot(25, btn(biomeIcon(d), "Biome",
                 "Currently: " + PlotBiomes.labelOf(d.biomeId) + " — recolor grass, leaves and sky on your plot.",
-                (i, t, a, gg) -> biomePicker(sp, anchor, 0)));
+                (i, t, a, gg) -> { if (allowed(sp, "fabricplots.biome")) biomePicker(sp, anchor, 0); }));
         g.setSlot(26, btn(Items.ZOMBIE_HEAD, "Mob spawning",
                 "Hostile: " + (d.spawnHostile ? "ON" : "OFF") + " · Passive: " + (d.spawnPassive ? "ON" : "OFF")
                         + " — what your plot's biome may spawn.",
-                (i, t, a, gg) -> mobSpawnPicker(sp, anchor)));
+                (i, t, a, gg) -> { if (allowed(sp, "fabricplots.mobs")) mobSpawnPicker(sp, anchor); }));
         g.setSlot(31, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> myPlots(sp, 0)));
         g.open();
     }
@@ -589,7 +607,9 @@ public final class PlotMenus {
         String label = d.name.isBlank() ? owner + "'s plot" : d.name;
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
         g.setTitle(Component.literal(label));
-        g.setSlot(11, btn(Items.ENDER_PEARL, "Visit", "Teleport to this plot.", (i, t, a, gg) -> { teleportVisit(sp, anchor); gg.close(); }));
+        g.setSlot(11, btn(Items.ENDER_PEARL, "Visit", "Teleport to this plot.", (i, t, a, gg) -> {
+            if (!allowed(sp, "fabricplots.visit")) return;
+            teleportVisit(sp, anchor); gg.close(); }));
         boolean own = d.owner.equals(sp.getUUID());
         boolean liked = d.likes.contains(sp.getUUID());
         if (own) {
@@ -599,6 +619,7 @@ public final class PlotMenus {
                     (liked ? "Unlike" : "Like") + "  (♥ " + d.likes.size() + ")",
                     liked ? "Remove your like." : "Like this plot.",
                     (i, t, a, gg) -> {
+                        if (!allowed(sp, "fabricplots.like")) return;
                         if (!d.likes.remove(sp.getUUID())) d.likes.add(sp.getUUID());
                         PlotManager.save();
                         plotView(sp, anchor, back);
