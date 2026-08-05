@@ -1,6 +1,7 @@
 package com.fabricplots.command;
 
 import com.fabricplots.FabricPlots;
+import com.fabricplots.compat.Perms;
 import com.fabricplots.core.CombineWand;
 import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotData;
@@ -120,7 +121,8 @@ public final class PlotCommands {
     private static int auto(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (atClaimLimit(ctx, p)) { msg(ctx, "You've hit the plot limit (" + PlotsConfig.claimLimit + ")."); return 0; }
+            if (!allowed(ctx, p, "fabricplots.claim")) return 0;
+            if (atClaimLimit(ctx, p)) { msg(ctx, "You've hit the plot limit (" + claimLimitFor(p) + ")."); return 0; }
             PlotPos free = PlotManager.nextFree();
             if (free == null) { msg(ctx, "No free plots available."); return 0; }
             long paid = chargeForClaim(ctx, p);
@@ -139,12 +141,13 @@ public final class PlotCommands {
     private static int claim(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.claim")) return 0;
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Stand in the plots world first."); return 0; }
             int x = p.getBlockX(), z = p.getBlockZ();
             if (!PlotManager.isInsidePlot(x, z)) { msg(ctx, "Stand inside a plot, not on the road."); return 0; }
             PlotPos pp = PlotManager.plotAt(x, z);
             if (PlotManager.isClaimed(pp)) { msg(ctx, "That plot is already claimed."); return 0; }
-            if (atClaimLimit(ctx, p)) { msg(ctx, "You've hit the plot limit (" + PlotsConfig.claimLimit + ")."); return 0; }
+            if (atClaimLimit(ctx, p)) { msg(ctx, "You've hit the plot limit (" + claimLimitFor(p) + ")."); return 0; }
             long paid = chargeForClaim(ctx, p);
             if (paid < 0) return 0; // couldn't afford — message already sent
             PlotManager.claim(pp, p.getUUID(), p.getName().getString());
@@ -186,6 +189,7 @@ public final class PlotCommands {
     private static int like(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.like")) return 0;
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = PlotManager.get(pp);
             if (d == null) { msg(ctx, "Stand on a plot to like it."); return 0; }
@@ -200,7 +204,7 @@ public final class PlotCommands {
     private static int setSpawn(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (!isOp(ctx, p)) { msg(ctx, "Ops only."); return 0; }
+            if (!staff(ctx, p, "fabricplots.setspawn")) return 0;
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Stand in the plot world where you want spawn."); return 0; }
             PlotsConfig.spawnX = p.getBlockX();
             PlotsConfig.spawnY = p.getBlockY();
@@ -214,7 +218,7 @@ public final class PlotCommands {
     private static int adminMode(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (!isOp(ctx, p)) { msg(ctx, "Ops only."); return 0; }
+            if (!staff(ctx, p, "fabricplots.admin")) return 0;
             boolean on = PlotProtection.toggleBuildAdmin(p);
             msg(ctx, on ? "Admin build mode ON — you can now edit roads and any plot. Be careful! Run /plot admin again to turn it off."
                        : "Admin build mode OFF — you're back to editing only your own plots.");
@@ -225,7 +229,7 @@ public final class PlotCommands {
     private static int reload(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (!isOp(ctx, p)) { msg(ctx, "Ops only."); return 0; }
+            if (!staff(ctx, p, "fabricplots.reload")) return 0;
             PlotsConfig.load();
             FabricPlots.applyWorldRules(ctx.getSource().getServer());
             msg(ctx, "Config reloaded. allow-player-combine=" + PlotsConfig.allowPlayerCombine
@@ -344,7 +348,7 @@ public final class PlotCommands {
     private static int portals(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (!isOp(ctx, p)) { msg(ctx, "Ops only."); return 0; }
+            if (!staff(ctx, p, "fabricplots.portals")) return 0;
             int n = PortalManager.rebuildAllExitPortals(plotsLevel(ctx));
             msg(ctx, "Rebuilt exit portals at spacing " + PlotsConfig.portalStreetSpacing
                     + " (every " + (PlotsConfig.portalStreetSpacing == 1 ? "" : PlotsConfig.portalStreetSpacing + nd(PlotsConfig.portalStreetSpacing) + " ")
@@ -358,7 +362,7 @@ public final class PlotCommands {
     private static int setServer(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (!isOp(ctx, p)) { msg(ctx, "Ops only."); return 0; }
+            if (!staff(ctx, p, "fabricplots.setserver")) return 0;
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = PlotManager.get(pp);
             if (d == null) { msg(ctx, "Stand on a claimed plot to hand it to the server."); return 0; }
@@ -373,7 +377,7 @@ public final class PlotCommands {
     private static int setOwner(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (!isOp(ctx, p)) { msg(ctx, "Ops only."); return 0; }
+            if (!staff(ctx, p, "fabricplots.setowner")) return 0;
             var profiles = GameProfileArgument.getGameProfiles(ctx, "player");
             if (profiles.isEmpty()) { msg(ctx, "Unknown player."); return 0; }
             var profile = profiles.iterator().next();
@@ -403,6 +407,7 @@ public final class PlotCommands {
     private static int namePlot(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.rename")) return 0;
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = PlotManager.get(pp);
             if (d == null) { msg(ctx, "Stand on a plot you own."); return 0; }
@@ -420,6 +425,7 @@ public final class PlotCommands {
     private static int kick(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.kick")) return 0;
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = p.level().dimension() == FabricPlots.PLOTS_DIM ? PlotManager.get(pp) : null;
             if (d == null) { msg(ctx, "Stand on your plot to kick its visitors."); return 0; }
@@ -434,6 +440,7 @@ public final class PlotCommands {
     private static int transfer(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.transfer")) return 0;
             ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = p.level().dimension() == FabricPlots.PLOTS_DIM ? PlotManager.get(pp) : null;
@@ -463,6 +470,7 @@ public final class PlotCommands {
     private static int key(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.portal")) return 0;
             // In the plot world, standing on a plot you may use: give that one plot's key.
             if (p.level().dimension() == FabricPlots.PLOTS_DIM) {
                 PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
@@ -493,7 +501,7 @@ public final class PlotCommands {
     private static int removeAll(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer admin = ctx.getSource().getPlayerOrException();
-            if (!isOp(ctx, admin)) { msg(ctx, "Ops only."); return 0; }
+            if (!staff(ctx, admin, "fabricplots.removeall")) return 0;
             var profiles = GameProfileArgument.getGameProfiles(ctx, "player");
             if (profiles.isEmpty()) { msg(ctx, "Unknown player."); return 0; }
             var profile = profiles.iterator().next();
@@ -511,6 +519,7 @@ public final class PlotCommands {
             ServerPlayer admin = ctx.getSource().getPlayerOrException();
             boolean op = isOp(ctx, admin);
             if (!op && !PlotsConfig.allowPlayerCombine) { msg(ctx, "Combining plots is admin-only on this server."); return 0; }
+            if (!op && !allowed(ctx, admin, "fabricplots.merge")) return 0;
             ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
             ServerLevel plots = plotsLevel(ctx);
             UUID tid = target.getUUID();
@@ -573,6 +582,7 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (!isOp(ctx, p) && !PlotsConfig.allowPlayerCombine) { msg(ctx, "Combining plots is admin-only on this server."); return 0; }
+            if (!isOp(ctx, p) && !allowed(ctx, p, "fabricplots.merge")) return 0;
             p.addItem(CombineWand.createWand());
             msg(ctx, "Combine wand given. Right-click a plot to select it; click another in the same row/column to fill the line between; click off-line to start a new arm. Build any shape (L, T, H, +), then /plot combine <player>.");
             return 1;
@@ -591,7 +601,7 @@ public final class PlotCommands {
     private static int repaint(CommandContext<CommandSourceStack> ctx, int radius) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            if (!isOp(ctx, p)) { msg(ctx, "Ops only."); return 0; }
+            if (!staff(ctx, p, "fabricplots.repaint")) return 0;
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plots world."); return 0; }
             int n = PlotWorldPainter.repaint(plotsLevel(ctx), p.getBlockX(), p.getBlockZ(), radius);
             msg(ctx, "Repainted roads within " + radius + " blocks (" + n + " columns).");
@@ -613,6 +623,7 @@ public final class PlotCommands {
     private static int clear(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.clear")) return 0;
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plots world."); return 0; }
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = PlotManager.get(pp);
@@ -627,6 +638,7 @@ public final class PlotCommands {
     private static int delete(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.delete")) return 0;
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = PlotManager.get(pp);
             if (d == null) { msg(ctx, "That plot is unclaimed."); return 0; }
@@ -687,6 +699,7 @@ public final class PlotCommands {
     private static int uncombine(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!isOp(ctx, p) && !allowed(ctx, p, "fabricplots.merge")) return 0;
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = PlotManager.get(pp);
@@ -705,6 +718,7 @@ public final class PlotCommands {
     private static int visit(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (!allowed(ctx, p, "fabricplots.visit")) return 0;
             ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
             PlotPos pp = PlotManager.firstOwned(target.getUUID());
             if (pp == null) { msg(ctx, "That player has no plot yet."); return 0; }
@@ -736,9 +750,33 @@ public final class PlotCommands {
         return PlotProtection.isAdmin(p); // server op OR single-player host
     }
 
+    // ---- permission gates (fabric-permissions-api, soft) -----------------
+    // Without a permissions mod every player node defaults to allowed and every staff node to
+    // the ops-only rule — exactly the pre-1.0.0 behavior.
+
+    /** Player-feature gate: allowed unless a permissions mod denies {@code node}. Messages on deny. */
+    private static boolean allowed(CommandContext<CommandSourceStack> ctx, ServerPlayer p, String node) {
+        if (Perms.check(p, node, true)) return true;
+        msg(ctx, "You don't have permission for that.");
+        return false;
+    }
+
+    /** Staff gate: {@code node} when defined by a permissions mod, else today's ops-only rule. */
+    private static boolean staff(CommandContext<CommandSourceStack> ctx, ServerPlayer p, String node) {
+        if (Perms.checkOp(p, node, 2)) return true;
+        msg(ctx, "You don't have permission for that.");
+        return false;
+    }
+
+    /** This player's claim limit: highest granted fabricplots.limit.N node, else the config value. */
+    private static int claimLimitFor(ServerPlayer p) {
+        return Perms.claimLimit(p, PlotsConfig.claimLimit);
+    }
+
     private static boolean atClaimLimit(CommandContext<CommandSourceStack> ctx, ServerPlayer p) {
-        if (isOp(ctx, p) || PlotsConfig.claimLimit <= 0) return false;
-        return PlotManager.ownedCount(p.getUUID()) >= PlotsConfig.claimLimit;
+        int limit = claimLimitFor(p);
+        if (isOp(ctx, p) || limit <= 0) return false;
+        return PlotManager.ownedCount(p.getUUID()) >= limit;
     }
 
     // ---- economy helpers -------------------------------------------------
