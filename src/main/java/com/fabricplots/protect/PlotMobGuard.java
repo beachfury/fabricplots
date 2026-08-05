@@ -78,10 +78,16 @@ public final class PlotMobGuard {
         java.util.List<Entity> doomed = new java.util.ArrayList<>();
         for (Entity e : plots.getAllEntities()) {
             if (e instanceof net.minecraft.server.level.ServerPlayer) continue;
-            if (PlotManager.owningPlot(e.getBlockX(), e.getBlockZ()) != d) continue;
-            if (everything) { doomed.add(e); continue; }
-            if (e instanceof net.minecraft.world.entity.item.ItemEntity && hostileOnly == null) { doomed.add(e); continue; }
+            boolean onPlot = PlotManager.owningPlot(e.getBlockX(), e.getBlockZ()) == d;
+            if (everything) { if (onPlot) doomed.add(e); continue; }
+            if (e instanceof net.minecraft.world.entity.item.ItemEntity && hostileOnly == null) { if (onPlot) doomed.add(e); continue; }
             if (!(e instanceof Mob mob) || mob.hasCustomName()) continue;
+            // A mob belongs to the purge if it stands on the plot OR its home is there
+            // (escapees loitering on the road while the sweep hasn't caught them yet).
+            if (!onPlot) {
+                BlockPos home = HOME.get(mob.getUUID());
+                if (home == null || PlotManager.owningPlot(home.getX(), home.getZ()) != d) continue;
+            }
             if (hostileOnly != null) {
                 boolean isHostile = mob.getType().getCategory() == net.minecraft.world.entity.MobCategory.MONSTER;
                 if (isHostile != hostileOnly) continue;
@@ -113,8 +119,9 @@ public final class PlotMobGuard {
             if (homePlot == null) { HOME.remove(mob.getUUID()); continue; } // plot was deleted
             if (here != homePlot) {
                 // mob-escape-action config: teleport escapees home (default) or despawn them at
-                // the boundary. Named mobs never reach here — they're exempt from the sweep.
-                if (com.fabricplots.core.PlotsConfig.mobEscapeDespawn) {
+                // the boundary. Never send one home to a plot whose spawn toggle no longer
+                // allows its category. Named mobs never reach here — they're exempt from the sweep.
+                if (com.fabricplots.core.PlotsConfig.mobEscapeDespawn || !allowed(homePlot, mob)) {
                     mob.discard();
                 } else {
                     mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
