@@ -281,31 +281,8 @@ public final class PlotCommands {
         line(src, "/plot undeny <player>", "un-ban a player");
         line(src, "/plot clear", "reset this plot to flat ground");
 
-        section(src, "Building");
-        line(src, "/plot edit", "open the build GUI");
-        line(src, "/plot measure", "open the measuring tools");
-        line(src, "/plot brush", "get a paint brush (sneak-click to configure)");
-        line(src, "/plot pos1", "set selection corner 1");
-        line(src, "/plot pos2", "set selection corner 2");
-        line(src, "/plot set <block>", "fill the selection");
-        line(src, "/plot replace <from> <to>", "replace blocks in the selection");
-        line(src, "/plot walls <block>", "build walls around the selection");
-        line(src, "/plot sphere <block> <radius>", "build a sphere");
-        line(src, "/plot hsphere <block> <radius>", "build a hollow sphere");
-        line(src, "/plot cyl <block> <radius> [height]", "build a cylinder");
-        line(src, "/plot disc <block> <size> [height]", "build a flat disc where you stand");
-        line(src, "/plot ring <block> <size> [height]", "build a ring where you stand");
-        line(src, "/plot line <block> [thickness]", "draw a line corner 1 → corner 2");
-        line(src, "/plot center", "mark the middle of corner 1 → corner 2 with gold");
-        line(src, "/plot tape", "lay a numbered measuring tape corner 1 → corner 2");
-        line(src, "/plot tape clear", "remove your measuring tape");
-        line(src, "/plot copy", "copy the selection");
-        line(src, "/plot cut", "cut the selection");
-        line(src, "/plot paste", "paste here");
-        line(src, "/plot stack <count>", "stack the selection");
-        line(src, "/plot move <count>", "move the selection");
-        line(src, "/plot undo", "undo the last edit");
-        line(src, "/plot redo", "redo");
+        // Building/editor commands (edit, shapes, clipboard, measure, …) are DraftSmith's —
+        // it attaches them under /plot and documents them itself. Not advertised here.
 
         if (isOpSource(ctx)) {
             section(src, "Admin");
@@ -736,7 +713,7 @@ public final class PlotCommands {
 
     // ---- helpers ---------------------------------------------------------
 
-    static ServerLevel plotsLevel(CommandContext<CommandSourceStack> ctx) { // package-private: EditCommands uses it too
+    private static ServerLevel plotsLevel(CommandContext<CommandSourceStack> ctx) {
         ServerLevel level = ctx.getSource().getServer().getLevel(FabricPlots.PLOTS_DIM);
         if (level == null) throw new IllegalStateException("Plots dimension not loaded (fabricplots:plots).");
         return level;
@@ -802,11 +779,11 @@ public final class PlotCommands {
         return sp != null ? sp.getName().getString() : id.toString().substring(0, 8);
     }
 
-    static void msg(CommandContext<CommandSourceStack> ctx, String text) { // package-private: EditCommands uses it too
+    private static void msg(CommandContext<CommandSourceStack> ctx, String text) {
         ctx.getSource().sendSuccess(() -> Component.literal("[Plots] " + text), false);
     }
 
-    static int err(CommandContext<CommandSourceStack> ctx, Exception e) { // package-private: EditCommands uses it too
+    private static int err(CommandContext<CommandSourceStack> ctx, Exception e) {
         ctx.getSource().sendFailure(Component.literal("[Plots] Error: " + e.getMessage()));
         return 0;
     }

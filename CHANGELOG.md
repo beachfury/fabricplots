@@ -21,6 +21,9 @@ The editor is now its own mod — bundled, so you notice nothing.
 - Cosmetic only: the editor screens are now titled "Build Editor" (they were "Plot Editor"), and a
   couple of editor chat lines are worded slightly differently. Every command, button, jail rule and
   block behavior is unchanged.
+- `/plot help` no longer lists the editor commands (its "Building" section) — they belong to
+  DraftSmith now, which documents its own tools. The commands themselves still work under `/plot`
+  exactly as before.
 
 ## [0.4.0] — 2026-07-31
 
