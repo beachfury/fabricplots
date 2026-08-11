@@ -22,6 +22,15 @@ Two mods, one toolkit — and Minecraft 1.21.1 support.
   permissions mod nothing changes**. Per-player claim limits come from the numeric nodes
   `fabricplots.limit.1` … `fabricplots.limit.64` (highest granted wins, overriding the config
   `claim-limit`).
+- **Per-plot mob cap.** Settings → Mob spawning grew a **Mob cap** button: left-click +1,
+  right-click −1, from 0 up to the server ceiling (shows "server default" until the owner picks a
+  number). The ceiling is the new config `mob-cap-per-plot` (default **15** per plot cell — merged
+  plots scale by cell count), and staff can raise a player's ceiling with the numeric permission
+  nodes `fabricplots.mobcap.1` … `fabricplots.mobcap.64` (highest granted wins; resolved while the
+  owner is online, offline owners use the config ceiling). Enforcement is spawn-time: a plot at its
+  cap simply stops accepting new biome spawns. Named mobs (pets) are exempt, as always.
+- **`mob-spawning` master switch.** New config key: `per-plot` (default) honors each plot's own
+  toggles; `off` stops every plot from spawning anything, overriding the per-plot settings.
 
 ### Fixed
 - **Spawn toggles also clear street stragglers.** Turning a plot's hostile/passive spawns off now
@@ -31,6 +40,12 @@ Two mods, one toolkit — and Minecraft 1.21.1 support.
   sweep clears untracked street mobs immediately.
 
 ### Changed
+- **Plot mob spawning now defaults OFF — quiet by default.** New plots spawn no hostile or passive
+  mobs until their owner opts in via Settings → Mob spawning (or a spawn-friendly biome is your
+  thing — flip the toggles on and it works exactly as before). Note for existing worlds: plots
+  whose save entries never stored the spawn toggles (saves from before the toggles existed) now
+  read them as **OFF** — that's intended; owners just opt back in from the menu. Plots with
+  explicitly saved toggles keep their setting.
 - **The build editor became [DraftSmith](https://github.com/beachfury/draftsmith).** The whole
   toolkit — GUI shapes, the 11 paint brushes, measuring tools, clipboard, random texture and undo —
   now lives in a standalone mod any Fabric server can run on any world. FabricPlots **bundles it
