@@ -1,19 +1,24 @@
 package com.fabricplots.protect;
 
 import com.fabricplots.compat.Compat;
+import com.fabricplots.compat.Perms;
 
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotData;
 import com.fabricplots.core.PlotManager;
+import com.fabricplots.core.PlotsConfig;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -31,6 +36,14 @@ public final class PlotMobGuard {
     /** Where each unnamed plot-world mob belongs (not persisted — re-learned from position on load). */
     private static final Map<UUID, BlockPos> HOME = new HashMap<>();
     private static final int HOME_RADIUS = 14;
+
+    /**
+     * Live tracked-mob count per plot, for the mob cap: incremented when a mob is adopted,
+     * rebuilt authoritatively by every {@link #tick} sweep (which already iterates all
+     * entities, so a purge/unload only leaves the count stale for a couple of seconds —
+     * and stale means "too high", which merely delays new spawns, never over-spawns).
+     */
+    private static final Map<PlotData, Integer> COUNT = new IdentityHashMap<>();
 
     private PlotMobGuard() {}
 
@@ -56,9 +69,47 @@ public final class PlotMobGuard {
                 world.getServer().execute(mob::discard); // next tick — never mid-load
                 return;
             }
-            HOME.put(mob.getUUID(), pos.immutable());
-            Compat.setHome(mob, pos, HOME_RADIUS);
+            // The master switch ("mob-spawning=off" — no plot spawns anything, whatever the
+            // toggles say) and the per-plot mob cap: a full plot accepts no more tracked mobs.
+            if (PlotsConfig.mobSpawningOff || tracked(d) >= effectiveCap(world.getServer(), d)) {
+                world.getServer().execute(mob::discard); // next tick — never mid-load
+                return;
+            }
+            track(d, mob, pos);
         });
+    }
+
+    /** Adopt an unnamed mob onto a plot: remember its home, tether its AI, count it toward the cap. */
+    private static void track(PlotData d, Mob mob, BlockPos pos) {
+        HOME.put(mob.getUUID(), pos.immutable());
+        Compat.setHome(mob, pos, HOME_RADIUS);
+        COUNT.merge(d, 1, Integer::sum);
+    }
+
+    /** Live tracked-mob count for a plot (see {@link #COUNT}). */
+    private static int tracked(PlotData d) {
+        return COUNT.getOrDefault(d, 0);
+    }
+
+    /**
+     * The plot's effective mob ceiling: the owner's chosen per-cell cap (or the server
+     * default when unset), clamped to the server ceiling, times the merge's cell count.
+     */
+    public static int effectiveCap(MinecraftServer server, PlotData d) {
+        int ceiling = capCeiling(server, d);
+        int perCell = Math.min(d.mobCap < 0 ? PlotsConfig.mobCapPerPlot : d.mobCap, ceiling);
+        return perCell * Math.max(1, d.cells.size());
+    }
+
+    /**
+     * The per-cell server ceiling for this plot: {@code mob-cap-per-plot}, raised by the
+     * owner's {@code fabricplots.mobcap.N} permission tier. Permission checks need a live
+     * player, so the tier only applies while the owner is ONLINE — plots of offline owners
+     * fall back to the plain config ceiling (kept simple on purpose).
+     */
+    public static int capCeiling(MinecraftServer server, PlotData d) {
+        ServerPlayer owner = server.getPlayerList().getPlayer(d.owner);
+        return owner == null ? PlotsConfig.mobCapPerPlot : Perms.mobCap(owner, PlotsConfig.mobCapPerPlot);
     }
 
     /** Does this plot's owner allow this (unnamed) mob's category? */
@@ -111,6 +162,7 @@ public final class PlotMobGuard {
     public static void tick(ServerLevel plots) {
         if (plots == null) return;
         Set<UUID> seen = new HashSet<>();
+        Map<PlotData, Integer> counts = new IdentityHashMap<>(); // authoritative rebuild for the mob cap
         for (Entity e : plots.getAllEntities()) {
             if (!(e instanceof Mob mob) || mob.hasCustomName()) continue;
             seen.add(mob.getUUID());
@@ -121,6 +173,7 @@ public final class PlotMobGuard {
                 if (here != null) {
                     HOME.put(mob.getUUID(), mob.blockPosition().immutable());
                     Compat.setHome(mob, mob.blockPosition(), HOME_RADIUS);
+                    counts.merge(here, 1, Integer::sum);
                 } else if (!PlotManager.isInsidePlot(mob.getBlockX(), mob.getBlockZ())) {
                     // Streets are no-spawn land: an untracked mob standing on the street band
                     // goes immediately instead of waiting minutes for the unnamed-mob cleanup.
@@ -134,14 +187,17 @@ public final class PlotMobGuard {
                 // mob-escape-action config: teleport escapees home (default) or despawn them at
                 // the boundary. Never send one home to a plot whose spawn toggle no longer
                 // allows its category. Named mobs never reach here — they're exempt from the sweep.
-                if (com.fabricplots.core.PlotsConfig.mobEscapeDespawn || !allowed(homePlot, mob)) {
+                if (PlotsConfig.mobEscapeDespawn || !allowed(homePlot, mob)) {
                     mob.discard();
-                } else {
-                    mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
-                    mob.getNavigation().stop();
+                    continue; // gone — don't count it toward its plot's cap
                 }
+                mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+                mob.getNavigation().stop();
             }
+            counts.merge(homePlot, 1, Integer::sum);
         }
         HOME.keySet().retainAll(seen);
+        COUNT.clear();
+        COUNT.putAll(counts);
     }
 }

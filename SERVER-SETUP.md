@@ -58,6 +58,8 @@ Edit the file, then **`/plot reload`** (no restart). Geometry is NOT here (needs
 | `protect-fire` | `true` | stop fire spreading |
 | `protect-mob-griefing` | `true` | stop mobs editing blocks |
 | `protect-projectiles` | `true` | stop arrows breaking blocks |
+| `mob-spawning` | `per-plot` | `per-plot` honors each plot's own spawn toggles; `off` is a master kill switch — no plot spawns anything |
+| `mob-cap-per-plot` | `15` | max biome mobs living on a plot, per cell (merges scale by cell count; `fabricplots.mobcap.N` permission tiers can raise it per owner) |
 | `inactivity-expiry` | `false` | auto-release plots of long-absent owners |
 | `inactivity-days` | `30` | days of absence before release |
 | `spawn-x/y/z` | `40/67/40` | plot-world spawn (set in-game with `/plot setspawn`) |

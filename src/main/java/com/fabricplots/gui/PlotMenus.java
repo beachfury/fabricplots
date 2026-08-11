@@ -238,6 +238,19 @@ public final class PlotMenus {
                     }
                     mobSpawnPicker(sp, anchor);
                 }));
+        // The owner's spawn budget: how many biome mobs may live here at once (per plot cell —
+        // merges scale by cell count; the server ceiling clamps it, and fabricplots.mobcap.N
+        // permission tiers can raise that ceiling). -1 means "use the server default".
+        int ceiling = PlotMobGuard.capCeiling(sp.level().getServer(), d);
+        String capShown = d.mobCap < 0 ? "server default (" + PlotsConfig.mobCapPerPlot + ")" : Integer.toString(d.mobCap);
+        g.setSlot(13, btn(Items.SPAWNER, "Mob cap: " + capShown + " (server max " + ceiling + ")",
+                "How many mobs may live here, per plot cell. Left-click +1, right-click -1.",
+                (i, t, a, gg) -> {
+                    int cur = d.mobCap < 0 ? PlotsConfig.mobCapPerPlot : d.mobCap;
+                    d.mobCap = Math.max(0, Math.min(ceiling, t.isRight ? cur - 1 : cur + 1));
+                    PlotManager.save();
+                    mobSpawnPicker(sp, anchor);
+                }));
         g.setSlot(22, btn(Items.ARROW, "Back", "Named mobs (pets) are never touched.", (i, t, a, gg) -> settings(sp, anchor)));
         g.open();
     }

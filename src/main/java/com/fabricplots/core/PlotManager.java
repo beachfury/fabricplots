@@ -124,6 +124,7 @@ public final class PlotManager {
             single.biomeId = d.biomeId;
             single.spawnHostile = d.spawnHostile;
             single.spawnPassive = d.spawnPassive;
+            single.mobCap = d.mobCap;
             single.sidewalkPattern = d.sidewalkPattern;
             single.wallPattern = d.wallPattern;
             single.paidAmount = perCellPaid;
@@ -245,6 +246,7 @@ public final class PlotManager {
                 if (parts.length > 15) d.biomeId = parts[15];
                 if (parts.length > 16 && !parts[16].isBlank()) d.spawnHostile = Boolean.parseBoolean(parts[16].trim());
                 if (parts.length > 17 && !parts[17].isBlank()) d.spawnPassive = Boolean.parseBoolean(parts[17].trim());
+                if (parts.length > 18 && !parts[18].isBlank()) { try { d.mobCap = Integer.parseInt(parts[18].trim()); } catch (NumberFormatException ignored) {} }
                 for (PlotPos c : d.cells) PLOTS.put(c, d);
             } catch (Exception e) {
                 System.err.println("[FabricPlots] Skipped bad plot line: " + line + " (" + e + ")");
@@ -276,7 +278,7 @@ public final class PlotManager {
             lines.add(d.owner + ";" + d.ownerName + ";" + tj + ";" + cj + ";" + d.name + ";" + dj + ";" + home
                     + ";" + floor + ";" + d.pvp + ";" + lj + ";" + d.paidAmount
                     + ";" + d.greeting + ";" + d.ambience + ";" + d.sidewalkPattern + ";" + d.wallPattern
-                    + ";" + d.biomeId + ";" + d.spawnHostile + ";" + d.spawnPassive);
+                    + ";" + d.biomeId + ";" + d.spawnHostile + ";" + d.spawnPassive + ";" + d.mobCap);
         }
         try {
             Files.write(saveFile, lines);
