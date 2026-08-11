@@ -48,6 +48,8 @@ public final class PlotsConfig {
     public static volatile int refundPercent = 50;            // how much of the paid amount to refund
     public static volatile String economyCurrencyId = "";     // currency id (blank = the provider's default)
     public static volatile boolean mobEscapeDespawn = false;  // "mob-escape-action": teleport (default) or despawn
+    public static volatile boolean mobSpawningOff = false;    // "mob-spawning": per-plot (default) honors the owners' toggles; off = master kill switch
+    public static volatile int mobCapPerPlot = 15;            // server ceiling on tracked mobs per plot cell (merges scale by cell count)
 
     private static Path file;
 
@@ -68,6 +70,8 @@ public final class PlotsConfig {
         unnamedMobGraceTicks = inted(p, "unnamed-mob-grace-ticks", unnamedMobGraceTicks);
         mobScanIntervalTicks = inted(p, "mob-scan-interval-ticks", mobScanIntervalTicks);
         mobEscapeDespawn = "despawn".equalsIgnoreCase(p.getProperty("mob-escape-action", mobEscapeDespawn ? "despawn" : "teleport").trim());
+        mobSpawningOff = "off".equalsIgnoreCase(p.getProperty("mob-spawning", mobSpawningOff ? "off" : "per-plot").trim());
+        mobCapPerPlot = Math.max(0, inted(p, "mob-cap-per-plot", mobCapPerPlot));
         portalStreetSpacing = Math.max(1, inted(p, "portal-street-spacing", portalStreetSpacing));
         advanceTime = bool(p, "advance-time", advanceTime);
         advanceWeather = bool(p, "advance-weather", advanceWeather);
@@ -103,6 +107,9 @@ public final class PlotsConfig {
         p.setProperty("welcome-message", Boolean.toString(welcomeMessage));
         p.setProperty("unnamed-mob-grace-ticks", Integer.toString(unnamedMobGraceTicks));
         p.setProperty("mob-scan-interval-ticks", Integer.toString(mobScanIntervalTicks));
+        p.setProperty("mob-escape-action", mobEscapeDespawn ? "despawn" : "teleport");
+        p.setProperty("mob-spawning", mobSpawningOff ? "off" : "per-plot");
+        p.setProperty("mob-cap-per-plot", Integer.toString(mobCapPerPlot));
         p.setProperty("portal-street-spacing", Integer.toString(portalStreetSpacing));
         p.setProperty("advance-time", Boolean.toString(advanceTime));
         p.setProperty("advance-weather", Boolean.toString(advanceWeather));

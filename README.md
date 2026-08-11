@@ -30,8 +30,12 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   `/fillbiome` machinery. Persists in the world, covers merged shapes, and resets automatically when a plot
   is deleted or expires. Mobs the biome spawns are **confined to the plot** (tethered AI + a
   teleport-back sweep), so a Nether Wastes plot keeps its piglins to itself — and per-plot **spawn
-  toggles** let the owner allow/block hostile and passive spawns independently. Changing biome (or
-  `/plot clear`) cleans up the previous mobs and their drops.
+  toggles** let the owner allow/block hostile and passive spawns independently. **Spawns are OFF by
+  default** (quiet plot world — owners opt in from Settings → Mob spawning), a per-plot **mob cap**
+  keeps zoo builds in check (owner-adjustable up to the `mob-cap-per-plot` server ceiling, scaling
+  with merged cells, raisable per player via `fabricplots.mobcap.N` permission tiers), and a
+  `mob-spawning=off` config switch kills all plot spawning server-wide. Changing biome (or
+  `/plot clear`) cleans up the previous mobs and their drops. Named mobs (pets) are always exempt.
 - **Placeholders** — with [Placeholder API](https://placeholders.pb4.eu/) installed, `%fabricplots:owned%`,
   `%fabricplots:total%`, `%fabricplots:my_likes%`, `%fabricplots:plot_name%`, `%fabricplots:plot_owner%`,
   `%fabricplots:plot_likes%`, `%fabricplots:plot_biome%` work in tab lists, chat formats and holograms
@@ -202,7 +206,7 @@ allowed for everyone, staff commands ops-only). With one installed, these nodes 
 | `fabricplots.ambience` | the Sky & weather picker |
 | `fabricplots.floor` | the Floor block picker |
 | `fabricplots.designer` | the Sidewalk & Wall designers |
-| `fabricplots.mobs` | the per-plot Mob spawning toggles |
+| `fabricplots.mobs` | the per-plot Mob spawning toggles and the Mob cap button |
 | `fabricplots.pvp` | the per-plot PvP toggle |
 | `fabricplots.greeting` | the Greeting editor |
 
@@ -217,6 +221,11 @@ non-op that tool, deny it to take it from an op:
 per-player/per-group plot limit: the **highest granted node wins** and overrides the config
 `claim-limit`; players with none granted use the config value (`0` = unlimited, ops are exempt
 as always).
+
+**Mob-cap tiers** — the numeric nodes `fabricplots.mobcap.1` … `fabricplots.mobcap.64` **raise**
+a plot owner's mob-cap ceiling above the config `mob-cap-per-plot` (the highest granted node
+wins; a node at or below the config ceiling changes nothing). The tier is resolved at spawn time
+and needs the owner **online** — plots of offline owners use the plain config ceiling.
 
 ## Building from source
 
