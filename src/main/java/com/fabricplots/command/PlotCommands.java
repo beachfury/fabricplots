@@ -20,6 +20,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -36,12 +37,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * /plot auto | claim | home | info | clear | delete | trust | untrust | visit
  * All commands are typed text, so Bedrock players reach them through Geyser.
  */
 public final class PlotCommands {
+    private record PendingConfirmation(String action, int expiresAt) {}
+    private static final Map<UUID, PendingConfirmation> CONFIRMATIONS = new ConcurrentHashMap<>();
+
     private PlotCommands() {}
 
     public static void register(CommandDispatcher<CommandSourceStack> d, CommandBuildContext bc) {
@@ -57,7 +63,7 @@ public final class PlotCommands {
                 .then(Commands.literal("delete").executes(PlotCommands::delete))
                 .then(Commands.literal("repaint")
                         .executes(ctx -> repaint(ctx, 64))
-                        .then(Commands.argument("radius", IntegerArgumentType.integer(1, 512))
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(1, 128))
                                 .executes(ctx -> repaint(ctx, IntegerArgumentType.getInteger(ctx, "radius")))))
                 .then(Commands.literal("wand")
                         .executes(PlotCommands::giveWand)
@@ -127,8 +133,12 @@ public final class PlotCommands {
             if (free == null) { msg(ctx, "No free plots available."); return 0; }
             long paid = chargeForClaim(ctx, p);
             if (paid < 0) return 0; // couldn't afford — message already sent
-            PlotManager.claim(free, p.getUUID(), p.getName().getString());
-            recordPaid(free, paid);
+            if (!PlotManager.claim(free, p.getUUID(), p.getName().getString(), paid)) {
+                if (paid > 0 && !PlotEconomy.refund(p, paid))
+                    msg(ctx, "Claim failed to save and the automatic refund also failed — contact an administrator.");
+                else msg(ctx, "Claim failed to save; no money was kept. Please try again.");
+                return 0;
+            }
             p.addItem(PortalManager.createKey(free));
             PortalManager.buildExitPortal(plotsLevel(ctx), free);
             teleport(p, plotsLevel(ctx), free);
@@ -150,8 +160,12 @@ public final class PlotCommands {
             if (atClaimLimit(ctx, p)) { msg(ctx, "You've hit the plot limit (" + claimLimitFor(p) + ")."); return 0; }
             long paid = chargeForClaim(ctx, p);
             if (paid < 0) return 0; // couldn't afford — message already sent
-            PlotManager.claim(pp, p.getUUID(), p.getName().getString());
-            recordPaid(pp, paid);
+            if (!PlotManager.claim(pp, p.getUUID(), p.getName().getString(), paid)) {
+                if (paid > 0 && !PlotEconomy.refund(p, paid))
+                    msg(ctx, "Claim failed to save and the automatic refund also failed — contact an administrator.");
+                else msg(ctx, "Claim failed to save; no money was kept. Please try again.");
+                return 0;
+            }
             p.addItem(PortalManager.createKey(pp));
             PortalManager.buildExitPortal(plotsLevel(ctx), pp);
             msg(ctx, "Claimed plot " + pp.px() + "," + pp.pz() + paidNote(p, paid)
@@ -173,6 +187,12 @@ public final class PlotCommands {
     private static int info(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
+            if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plots world."); return 0; }
+            if (!PlotManager.isInsidePlot(p.getBlockX(), p.getBlockZ())
+                    && !PlotManager.isMergedGap(p.getBlockX(), p.getBlockZ())) {
+                msg(ctx, "Stand inside a plot, not on the road.");
+                return 0;
+            }
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
             PlotData d = PlotManager.get(pp);
             if (d == null) { msg(ctx, "Plot " + pp.px() + "," + pp.pz() + " is unclaimed."); return 1; }
@@ -190,13 +210,18 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (!allowed(ctx, p, "fabricplots.like")) return 0;
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null) { msg(ctx, "Stand on a plot to like it."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on a claimed plot to like it.");
+            if (d == null) return 0;
             if (d.owner.equals(p.getUUID())) { msg(ctx, "You can't like your own plot."); return 0; }
-            if (d.likes.remove(p.getUUID())) msg(ctx, "Removed your like. This plot now has " + d.likes.size() + ".");
-            else { d.likes.add(p.getUUID()); msg(ctx, "Liked! This plot now has " + d.likes.size() + " like" + (d.likes.size() == 1 ? "" : "s") + "."); }
-            PlotManager.save();
+            boolean removed = d.likes.remove(p.getUUID());
+            if (!removed) d.likes.add(p.getUUID());
+            if (!PlotManager.save()) {
+                if (removed) d.likes.add(p.getUUID()); else d.likes.remove(p.getUUID());
+                msg(ctx, "The like could not be saved. Please try again.");
+                return 0;
+            }
+            if (removed) msg(ctx, "Removed your like. This plot now has " + d.likes.size() + ".");
+            else msg(ctx, "Liked! This plot now has " + d.likes.size() + " like" + (d.likes.size() == 1 ? "" : "s") + ".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -247,11 +272,12 @@ public final class PlotCommands {
     private static int setHome(CommandContext<CommandSourceStack> ctx) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null || (!d.owner.equals(p.getUUID()) && !isOp(ctx, p))) { msg(ctx, "Stand on your own plot first."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on your own plot first.");
+            if (d == null) return 0;
+            if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "Stand on your own plot first."); return 0; }
+            BlockPos oldHome = d.home;
             d.home = p.blockPosition().immutable();
-            PlotManager.save();
+            if (!PlotManager.save()) { d.home = oldHome; msg(ctx, "The new home could not be saved. Please try again."); return 0; }
             msg(ctx, "Plot home set — /plot home will bring you here.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -364,12 +390,16 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (!staff(ctx, p, "fabricplots.setserver")) return 0;
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null) { msg(ctx, "Stand on a claimed plot to hand it to the server."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on a claimed plot to hand it to the server.");
+            if (d == null) return 0;
+            UUID oldOwner = d.owner;
+            String oldName = d.ownerName;
             d.owner = PlotManager.SERVER_UUID;
             d.ownerName = "Server";
-            PlotManager.save();
+            if (!PlotManager.save()) {
+                d.owner = oldOwner; d.ownerName = oldName;
+                msg(ctx, "The ownership change could not be saved."); return 0;
+            }
             msg(ctx, "Plot is now server-owned.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -382,13 +412,19 @@ public final class PlotCommands {
             var profiles = GameProfileArgument.getGameProfiles(ctx, "player");
             if (profiles.isEmpty()) { msg(ctx, "Unknown player."); return 0; }
             var profile = profiles.iterator().next();
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null) { msg(ctx, "Stand on a claimed plot to transfer it."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on a claimed plot to transfer it.");
+            if (d == null) return 0;
+            UUID oldOwner = d.owner;
+            String oldName = d.ownerName;
+            boolean wasTrusted = d.trusted.contains(profile.getId());
             d.owner = profile.getId();
             d.ownerName = profile.getName();
             d.trusted.remove(profile.getId());
-            PlotManager.save();
+            if (!PlotManager.save()) {
+                d.owner = oldOwner; d.ownerName = oldName;
+                if (wasTrusted) d.trusted.add(profile.getId());
+                msg(ctx, "The ownership change could not be saved."); return 0;
+            }
             msg(ctx, "Plot transferred to " + profile.getName() + ".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -399,7 +435,10 @@ public final class PlotCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             boolean admin = PlotProtection.isAdmin(p);
             boolean buildAdmin = PlotProtection.isBuildAdmin(p);
-            msg(ctx, "FabricPlots build 2026-06-26y · you are " + (admin ? "an OP" : "a normal player")
+            String version = FabricLoader.getInstance().getModContainer("fabricplots")
+                    .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                    .orElse("unknown");
+            msg(ctx, "FabricPlots " + version + " · you are " + (admin ? "an OP" : "a normal player")
                     + (admin ? (buildAdmin ? " · build-admin mode ON (editing anywhere)" : " · build-admin mode OFF (own plots only — /plot admin to unlock)") : ""));
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -409,14 +448,14 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (!allowed(ctx, p, "fabricplots.rename")) return 0;
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null) { msg(ctx, "Stand on a plot you own."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on a plot you own.");
+            if (d == null) return 0;
             if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
             String raw = StringArgumentType.getString(ctx, "name");
+            String oldName = d.name;
             d.name = raw.replace(";", "").replace("|", "").replace(",", "").trim();
             if (d.name.length() > 48) d.name = d.name.substring(0, 48);
-            PlotManager.save();
+            if (!PlotManager.save()) { d.name = oldName; msg(ctx, "The new name could not be saved."); return 0; }
             msg(ctx, "Plot named \"" + d.name + "\".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -427,9 +466,8 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (!allowed(ctx, p, "fabricplots.kick")) return 0;
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = p.level().dimension() == FabricPlots.PLOTS_DIM ? PlotManager.get(pp) : null;
-            if (d == null) { msg(ctx, "Stand on your plot to kick its visitors."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on your plot to kick its visitors.");
+            if (d == null) return 0;
             if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
             int n = PlotMenus.kickVisitors(p, d);
             msg(ctx, "Sent " + n + " visitor" + (n == 1 ? "" : "s") + " to spawn.");
@@ -443,16 +481,24 @@ public final class PlotCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (!allowed(ctx, p, "fabricplots.transfer")) return 0;
             ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = p.level().dimension() == FabricPlots.PLOTS_DIM ? PlotManager.get(pp) : null;
-            if (d == null) { msg(ctx, "Stand on the plot you want to transfer."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on the plot you want to transfer.");
+            if (d == null) return 0;
             if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
             if (target.getUUID().equals(d.owner)) { msg(ctx, "They already own this plot."); return 0; }
+            UUID oldOwner = d.owner;
+            String oldName = d.ownerName;
+            boolean wasTrusted = d.trusted.contains(target.getUUID());
+            boolean wasDenied = d.denied.contains(target.getUUID());
             d.owner = target.getUUID();
             d.ownerName = target.getName().getString();
             d.trusted.remove(target.getUUID());
             d.denied.remove(target.getUUID());
-            PlotManager.save();
+            if (!PlotManager.save()) {
+                d.owner = oldOwner; d.ownerName = oldName;
+                if (wasTrusted) d.trusted.add(target.getUUID());
+                if (wasDenied) d.denied.add(target.getUUID());
+                msg(ctx, "The ownership change could not be saved."); return 0;
+            }
             msg(ctx, "Plot transferred to " + d.ownerName + ".");
             target.sendSystemMessage(Component.literal("[Plots] " + p.getName().getString() + " gave you their plot!"));
             return 1;
@@ -475,7 +521,7 @@ public final class PlotCommands {
             // In the plot world, standing on a plot you may use: give that one plot's key.
             if (p.level().dimension() == FabricPlots.PLOTS_DIM) {
                 PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-                PlotData d = PlotManager.get(pp);
+                PlotData d = PlotManager.owningPlot(p.getBlockX(), p.getBlockZ());
                 if (d != null && (d.owner.equals(p.getUUID()) || d.trusted.contains(p.getUUID()) || isOp(ctx, p))) {
                     p.addItem(PortalManager.createKey(pp));
                     msg(ctx, "Here's your Portal Key. Build a calcite frame at your base and right-click inside it with this.");
@@ -506,10 +552,18 @@ public final class PlotCommands {
             var profiles = GameProfileArgument.getGameProfiles(ctx, "player");
             if (profiles.isEmpty()) { msg(ctx, "Unknown player."); return 0; }
             var profile = profiles.iterator().next();
-            for (PlotData d : PlotManager.allPlots())
-                if (profile.getId().equals(d.owner) && !d.biomeId.isBlank())
-                    PlotBiomes.resetBiome(plotsLevel(ctx), d); // before removal — needs the cells
+            List<PlotData> owned = new ArrayList<>();
+            for (PlotData d : PlotManager.allPlots()) if (profile.getId().equals(d.owner)) owned.add(d);
+            if (owned.stream().anyMatch(PlotWorldPainter::isBusy)) {
+                msg(ctx, "One of that player's plots is still being updated. Try again when it finishes.");
+                return 0;
+            }
             int n = PlotManager.removeAllOwnedBy(profile.getId());
+            if (n < 0) { msg(ctx, "Could not save the ownership change; no plots were released."); return 0; }
+            for (PlotData d : owned) {
+                if (!d.biomeId.isBlank()) PlotBiomes.resetBiome(plotsLevel(ctx), d);
+                for (PlotPos cell : d.cells) PortalManager.removeExitPortalIfOrphan(plotsLevel(ctx), cell);
+            }
             msg(ctx, "Freed " + n + " plot(s) previously owned by " + profile.getName() + ".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -538,8 +592,21 @@ public final class PlotCommands {
                 return 0;
             }
 
+            java.util.Set<PlotPos> selected = new java.util.HashSet<>(cells);
+            java.util.Set<PlotData> existingGroups = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
             for (PlotPos cell : cells) {
                 PlotData d = PlotManager.get(cell);
+                if (PlotWorldPainter.isBusy(d)) {
+                    msg(ctx, "One of those plots is still being updated. Try again when it finishes.");
+                    return 0;
+                }
+                if (d != null) {
+                    existingGroups.add(d);
+                    if (!selected.containsAll(d.cells)) {
+                        msg(ctx, "Your selection includes only part of an existing merged plot. Select all of its cells first.");
+                        return 0;
+                    }
+                }
                 if (op) {
                     if (d != null && !d.owner.equals(tid)) {
                         msg(ctx, "Plot " + cell.px() + "," + cell.pz() + " is owned by someone else — remove them first.");
@@ -550,13 +617,32 @@ public final class PlotCommands {
                     return 0;
                 }
             }
+            if (existingGroups.size() == 1) {
+                PlotData only = existingGroups.iterator().next();
+                if (only.cells.size() == selected.size() && selected.containsAll(only.cells)) {
+                    msg(ctx, "Those cells are already one merged plot.");
+                    return 0;
+                }
+            }
+            if (!PlotWorldPainter.canQueueWorldJob()) { msg(ctx, "The world-update queue is full. Try again shortly."); return 0; }
+
+            if (!confirmed(ctx, admin, "combine:" + tid + ":" + new java.util.HashSet<>(cells).hashCode(),
+                    "This wipes the selected plot interiors. Run the same /plot combine command again within 15 seconds to confirm.")) return 0;
 
             CombineWand.restore(plots, admin);        // pull the gold markers
-            PlotManager.combine(cells, tid, target.getName().getString()); // merge ownership
-            PlotWorldPainter.combineRepaint(plots, cells); // wipe + dissolve interior roads + repaint
+            if (!PlotManager.combine(cells, tid, target.getName().getString())) {
+                msg(ctx, "The merge could not be saved; ownership was left unchanged.");
+                return 0;
+            }
+            int queued = PlotWorldPainter.combineRepaint(plots, cells); // wipe + dissolve interior roads + repaint
+            if (queued < 0) {
+                msg(ctx, "The plots were combined, but their repaint could not be queued; ask an administrator to run /plot repaint.");
+                return 0;
+            }
             PortalManager.removeInternalMergePortals(plots, cells); // delete portals now inside the merged plot
             for (PlotPos c : cells) PortalManager.buildExitPortal(plots, c); // exit portals on exterior streets
-            msg(ctx, "Combined " + cells.size() + " plots into one for " + target.getName().getString() + ".");
+            msg(ctx, "Combined " + cells.size() + " plots for " + target.getName().getString()
+                    + "; the terrain reset is now running safely in the background.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -605,7 +691,8 @@ public final class PlotCommands {
             if (!staff(ctx, p, "fabricplots.repaint")) return 0;
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plots world."); return 0; }
             int n = PlotWorldPainter.repaint(plotsLevel(ctx), p.getBlockX(), p.getBlockZ(), radius);
-            msg(ctx, "Repainted roads within " + radius + " blocks (" + n + " columns).");
+            if (n < 0) { msg(ctx, "The world-update queue is full. Try again shortly."); return 0; }
+            msg(ctx, "Queued a safe background repaint within " + radius + " blocks (" + n + " columns).");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -626,12 +713,15 @@ public final class PlotCommands {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (!allowed(ctx, p, "fabricplots.clear")) return 0;
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plots world."); return 0; }
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null) { msg(ctx, "That plot is unclaimed."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "That plot is unclaimed.");
+            if (d == null) return 0;
             if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
+            if (!PlotWorldPainter.canQueueWorldJob()) { msg(ctx, "The world-update queue is full. Try again shortly."); return 0; }
+            if (!confirmed(ctx, p, "clear:" + d.cells.hashCode(),
+                    "This permanently wipes every block and entity on the plot. Run /plot clear again within 15 seconds to confirm.")) return 0;
             int n = PlotWorldPainter.clearPlot(plotsLevel(ctx), d);
-            msg(ctx, "Cleared " + n + " columns top-to-bottom back to flat ground.");
+            if (n < 0) { msg(ctx, "That plot is already being updated. Try again when it finishes."); return 0; }
+            msg(ctx, "Started clearing the plot safely in the background (up to " + n + " columns).");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -640,22 +730,25 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             if (!allowed(ctx, p, "fabricplots.delete")) return 0;
+            PlotData d = claimedPlotHere(ctx, p, "That plot is unclaimed.");
+            if (d == null) return 0;
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null) { msg(ctx, "That plot is unclaimed."); return 0; }
             if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
+            if (!confirmed(ctx, p, "delete:" + d.cells.hashCode(),
+                    "This releases the plot and cannot be undone. Run /plot delete again within 15 seconds to confirm.")) return 0;
             // Refund only the owner deleting their own plot (an op cleaning up someone else's isn't refunded).
             long refund = 0;
             if (PlotsConfig.economyEnabled && PlotsConfig.refundOnDelete && d.paidAmount > 0 && p.getUUID().equals(d.owner)) {
                 refund = d.paidAmount * PlotsConfig.refundPercent / 100;
             }
             List<PlotPos> released = new ArrayList<>(d.cells);
-            if (!d.biomeId.isBlank()) PlotBiomes.resetBiome(plotsLevel(ctx), d); // before unclaim — needs the cells
-            PlotManager.unclaim(pp);
+            if (!PlotManager.unclaim(pp)) { msg(ctx, "Could not save the ownership change; the plot was not released."); return 0; }
+            if (!d.biomeId.isBlank()) PlotBiomes.resetBiome(plotsLevel(ctx), d);
             for (PlotPos c : released) PortalManager.removeExitPortalIfOrphan(plotsLevel(ctx), c);
-            if (refund > 0) PlotEconomy.refund(p, refund);
+            boolean refunded = refund <= 0 || PlotEconomy.refund(p, refund);
             msg(ctx, "Released plot " + pp.px() + "," + pp.pz()
-                    + (refund > 0 ? " — refunded " + PlotEconomy.format(p, refund) : "") + ".");
+                    + (refund > 0 && refunded ? " — refunded " + PlotEconomy.format(p, refund) : "")
+                    + (refund > 0 && !refunded ? " — refund failed; contact an administrator" : "") + ".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -664,12 +757,18 @@ public final class PlotCommands {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
             ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null || !d.owner.equals(p.getUUID())) { msg(ctx, "Stand on your own plot first."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on your own plot first.");
+            if (d == null) return 0;
+            if (!d.owner.equals(p.getUUID())) { msg(ctx, "Stand on your own plot first."); return 0; }
+            java.util.Set<UUID> oldTrusted = new java.util.LinkedHashSet<>(d.trusted);
+            java.util.Set<UUID> oldDenied = new java.util.LinkedHashSet<>(d.denied);
             if (add) { d.trusted.add(target.getUUID()); d.denied.remove(target.getUUID()); } // trusting lifts a deny
             else d.trusted.remove(target.getUUID());
-            PlotManager.save();
+            if (!PlotManager.save()) {
+                d.trusted.clear(); d.trusted.addAll(oldTrusted);
+                d.denied.clear(); d.denied.addAll(oldDenied);
+                msg(ctx, "The trust change could not be saved."); return 0;
+            }
             msg(ctx, (add ? "Trusted " : "Untrusted ") + target.getName().getString() + ".");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -678,12 +777,14 @@ public final class PlotCommands {
     private static int setDeny(CommandContext<CommandSourceStack> ctx, boolean add) {
         try {
             ServerPlayer p = ctx.getSource().getPlayerOrException();
-            PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
-            if (d == null || (!d.owner.equals(p.getUUID()) && !isOp(ctx, p))) { msg(ctx, "Stand on your own plot first."); return 0; }
+            PlotData d = claimedPlotHere(ctx, p, "Stand on your own plot first.");
+            if (d == null) return 0;
+            if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "Stand on your own plot first."); return 0; }
             var profiles = GameProfileArgument.getGameProfiles(ctx, "player");
             if (profiles.isEmpty()) { msg(ctx, "Unknown player."); return 0; }
             var profile = profiles.iterator().next();
+            java.util.Set<UUID> oldTrusted = new java.util.LinkedHashSet<>(d.trusted);
+            java.util.Set<UUID> oldDenied = new java.util.LinkedHashSet<>(d.denied);
             if (add) {
                 if (profile.getId().equals(d.owner)) { msg(ctx, "You can't deny the owner."); return 0; }
                 d.denied.add(profile.getId());
@@ -691,7 +792,11 @@ public final class PlotCommands {
             } else {
                 d.denied.remove(profile.getId());
             }
-            PlotManager.save();
+            if (!PlotManager.save()) {
+                d.trusted.clear(); d.trusted.addAll(oldTrusted);
+                d.denied.clear(); d.denied.addAll(oldDenied);
+                msg(ctx, "The deny change could not be saved."); return 0;
+            }
             msg(ctx, (add ? "Denied " : "Un-denied ") + profile.getName() + " on this plot.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
@@ -703,15 +808,20 @@ public final class PlotCommands {
             if (!isOp(ctx, p) && !allowed(ctx, p, "fabricplots.merge")) return 0;
             if (p.level().dimension() != FabricPlots.PLOTS_DIM) { msg(ctx, "Run this in the plot world."); return 0; }
             PlotPos pp = PlotManager.plotAt(p.getBlockX(), p.getBlockZ());
-            PlotData d = PlotManager.get(pp);
+            PlotData d = PlotManager.owningPlot(p.getBlockX(), p.getBlockZ());
             if (d == null) { msg(ctx, "That plot is unclaimed."); return 0; }
             if (!d.owner.equals(p.getUUID()) && !isOp(ctx, p)) { msg(ctx, "That isn't your plot."); return 0; }
             if (d.cells.size() <= 1) { msg(ctx, "That plot isn't merged."); return 0; }
+            if (PlotWorldPainter.isBusy(d)) { msg(ctx, "That plot is still being updated. Try again when it finishes."); return 0; }
+            if (!PlotWorldPainter.canQueueWorldJob()) { msg(ctx, "The world-update queue is full. Try again shortly."); return 0; }
+            if (!confirmed(ctx, p, "uncombine:" + d.cells.hashCode(),
+                    "This restores roads through the merged area. Run /plot uncombine again within 15 seconds to confirm.")) return 0;
             ServerLevel plots = plotsLevel(ctx);
             var cells = PlotManager.uncombine(pp);
+            if (cells.isEmpty()) { msg(ctx, "The split could not be saved; the merged plot was left unchanged."); return 0; }
             PlotWorldPainter.repaintCells(plots, cells);                 // re-cut the roads between cells
             for (PlotPos c : cells) PortalManager.buildExitPortal(plots, c);
-            msg(ctx, "Split the merged plot back into " + cells.size() + " plots (roads restored).");
+            msg(ctx, "Split the merged plot back into " + cells.size() + " plots; road restoration is running in the background.");
             return 1;
         } catch (Exception e) { return err(ctx, e); }
     }
@@ -729,6 +839,35 @@ public final class PlotCommands {
     }
 
     // ---- helpers ---------------------------------------------------------
+
+    /** Resolve the claimed plot the player is physically standing inside, never a road-adjacent cell. */
+    private static PlotData claimedPlotHere(CommandContext<CommandSourceStack> ctx, ServerPlayer p, String missing) {
+        if (p.level().dimension() != FabricPlots.PLOTS_DIM) {
+            msg(ctx, "Run this in the plots world.");
+            return null;
+        }
+        PlotData d = PlotManager.owningPlot(p.getBlockX(), p.getBlockZ());
+        if (d == null) msg(ctx, missing);
+        else if (PlotWorldPainter.isBusy(d)) {
+            msg(ctx, "That plot is being updated; try again when it finishes.");
+            return null;
+        }
+        return d;
+    }
+
+    /** Require an identical destructive command twice within a short window. */
+    private static boolean confirmed(CommandContext<CommandSourceStack> ctx, ServerPlayer p,
+                                     String action, String firstWarning) {
+        int now = ctx.getSource().getServer().getTickCount();
+        PendingConfirmation prior = CONFIRMATIONS.get(p.getUUID());
+        if (prior != null && prior.action().equals(action) && prior.expiresAt() >= now) {
+            CONFIRMATIONS.remove(p.getUUID(), prior);
+            return true;
+        }
+        CONFIRMATIONS.put(p.getUUID(), new PendingConfirmation(action, now + 15 * 20));
+        msg(ctx, firstWarning);
+        return false;
+    }
 
     private static ServerLevel plotsLevel(CommandContext<CommandSourceStack> ctx) {
         ServerLevel level = ctx.getSource().getServer().getLevel(FabricPlots.PLOTS_DIM);
@@ -799,14 +938,11 @@ public final class PlotCommands {
             msg(ctx, "You can't afford this plot — it costs " + PlotEconomy.format(p, cost) + ".");
             return -1;
         }
-        return r == PlotEconomy.Result.CHARGED ? cost : 0; // NO_ECONOMY (no provider present) -> free
-    }
-
-    /** Store the amount actually paid on the freshly-claimed plot, for refund accounting. */
-    private static void recordPaid(PlotPos pp, long paid) {
-        if (paid <= 0) return;
-        PlotData d = PlotManager.get(pp);
-        if (d != null) { d.paidAmount = paid; PlotManager.save(); }
+        if (r == PlotEconomy.Result.NO_ECONOMY) {
+            msg(ctx, "Plot economy is enabled, but its provider is unavailable. Ask an administrator to fix the economy setup.");
+            return -1;
+        }
+        return cost;
     }
 
     /** " (paid X)" note for claim messages when money changed hands, else "". */

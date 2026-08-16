@@ -5,7 +5,11 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "FluidContainmentMixin",
-    "PistonContainmentMixin"
+    "PistonContainmentMixin",
+    "DraftEditSafetyMixin",
+    "DraftEditAccessor",
+    "DraftShapesSafetyMixin",
+    "EntityDamageProtectionMixin"
   ],
   "injectors": {
     "defaultRequire": 1

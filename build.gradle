@@ -16,8 +16,12 @@ base {
 repositories {
     // For sgui / placeholder-api / common-economy-api.
     maven { url = 'https://maven.nucleoid.xyz' }
-    // For the DraftSmith editor jar — built locally: run publishToMavenLocal in draftsmith-mod.
-    mavenLocal()
+    // DraftSmith is not published yet. Restrict Maven Local to this one group so unrelated local
+    // artifacts can never shadow Fabric/Maven Central dependencies.
+    exclusiveContent {
+        forRepository { mavenLocal() }
+        filter { includeGroup "com.draftsmith" }
+    }
     // For fabric-permissions-api (soft dependency — permission nodes when LuckPerms etc. is present).
     mavenCentral()
 }
@@ -33,8 +37,8 @@ dependencies {
     // Server-side inventory GUIs (renders on vanilla + Bedrock-via-Geyser). Jar-in-Jar bundled
     // since 0.5.0 — server owners no longer install sgui separately (LGPL; JiJ is Patbox's
     // recommended distribution; the loader dedupes if another mod bundles it too).
-    modImplementation "eu.pb4:sgui:1.6.1+1.21.1"
-    include "eu.pb4:sgui:1.6.1+1.21.1"
+modImplementation "eu.pb4:sgui:${project.sgui_version}"
+include "eu.pb4:sgui:${project.sgui_version}"
 
     // The build editor (shapes, brushes, measure, clipboard, undo) — our own DraftSmith mod,
     // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing. The +MC suffix
@@ -61,6 +65,9 @@ dependencies {
     // before. 0.3.3 is the 1.21-era intermediary-mapped artifact via modCompileOnly (26.x:
     // compileOnly 0.7.0).
     modCompileOnly "me.lucko:fabric-permissions-api:0.3.3"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
 }
 
 java {
@@ -72,6 +79,10 @@ java {
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
     it.options.release = 21
+}
+
+test {
+    useJUnitPlatform()
 }
 
 processResources {

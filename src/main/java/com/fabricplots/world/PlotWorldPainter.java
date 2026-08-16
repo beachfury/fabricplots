@@ -7,6 +7,7 @@ import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotData;
 import com.fabricplots.core.PlotManager;
 import com.fabricplots.core.PlotPos;
+import com.fabricplots.core.AtomicFiles;
 import com.fabricplots.protect.PlotMobGuard;
 import com.fabricplots.protect.PortalManager;
 
@@ -22,9 +23,11 @@ import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -39,6 +42,39 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * middle row. Deterministic from world coords (gen == repaint).
  */
 public final class PlotWorldPainter {
+    private static final int MAX_WORLD_JOBS = 32;
+    private static final Queue<ColumnJob> WORLD_JOBS = new ArrayDeque<>();
+    private static final Set<PlotData> BUSY_PLOTS = Collections.newSetFromMap(new IdentityHashMap<>());
+    private static final Queue<Long> SMALL_REPAINTS = new ConcurrentLinkedQueue<>();
+    private static final Set<Long> SMALL_REPAINT_SET = ConcurrentHashMap.newKeySet();
+
+    @FunctionalInterface
+    private interface ColumnAction { void apply(int x, int z); }
+
+    /** One rectangular scan that advances a single column at a time on the server thread. */
+    private static final class ColumnJob {
+        final ServerLevel level;
+        final int xStart, xEnd, zStart, zEnd;
+        final ColumnAction action;
+        final Runnable finished;
+        int x, z;
+
+        ColumnJob(ServerLevel level, int xStart, int xEnd, int zStart, int zEnd,
+                  ColumnAction action, Runnable finished) {
+            this.level = level;
+            this.xStart = xStart; this.xEnd = xEnd;
+            this.zStart = zStart; this.zEnd = zEnd;
+            this.action = action; this.finished = finished;
+            this.x = xStart; this.z = zStart;
+        }
+
+        boolean step() {
+            action.apply(x, z);
+            if (++z <= zEnd) return false;
+            z = zStart;
+            return ++x > xEnd;
+        }
+    }
     private static final BlockState ROAD = Blocks.BLACK_CONCRETE.defaultBlockState();
     private static final BlockState DASH = Blocks.SMOOTH_QUARTZ.defaultBlockState();
     private static final BlockState SIDEWALK = Blocks.CHISELED_TUFF_BRICKS.defaultBlockState();
@@ -110,6 +146,77 @@ public final class PlotWorldPainter {
     // no onGenerate here — roads are painted together with the furniture in processPending, on a
     // chunk's first-ever load (tracked by the persisted decorated-chunks record).
 
+    /** Advance a bounded number of queued world columns. Called once per server tick. */
+    public static void processWorldJobs(ServerLevel plots, int columnBudget) {
+        if (plots == null || columnBudget <= 0) return;
+        int done = 0;
+        final BlockPos.MutableBlockPos repaintPos = new BlockPos.MutableBlockPos();
+        final Setter repaintSetter = (x, y, z, state) -> {
+            repaintPos.set(x, y, z);
+            if (!PortalManager.isProtected(repaintPos)) plots.setBlock(repaintPos, state, Block.UPDATE_CLIENTS);
+        };
+        Long small;
+        int smallBudget = Math.max(1, columnBudget / 4);
+        while (done < smallBudget && (small = SMALL_REPAINTS.poll()) != null) {
+            SMALL_REPAINT_SET.remove(small);
+            int x = (int) (small >> 32), z = (int) (long) small;
+            paintBase(x, z, repaintSetter, true);
+            if (REPAINT_FURNITURE) decorate(x, z, repaintSetter);
+            done++;
+        }
+        while (done++ < columnBudget && !WORLD_JOBS.isEmpty()) {
+            ColumnJob job = WORLD_JOBS.poll();
+            if (job.level != plots) { WORLD_JOBS.offer(job); continue; }
+            boolean complete;
+            try {
+                complete = job.step();
+            } catch (Throwable t) {
+                System.err.println("[FabricPlots] queued world job failed: " + t);
+                t.printStackTrace();
+                complete = true;
+            }
+            if (complete) {
+                try { job.finished.run(); }
+                catch (Throwable t) { System.err.println("[FabricPlots] queued world-job completion failed: " + t); }
+            } else {
+                WORLD_JOBS.offer(job); // round-robin so one large admin repaint cannot starve plot clears
+            }
+        }
+    }
+
+    /** Complete queued work during a clean shutdown so plots are not left half-repainted. */
+    public static void finishWorldJobs(ServerLevel plots) {
+        while (plots != null && (!WORLD_JOBS.isEmpty() || !SMALL_REPAINTS.isEmpty())) processWorldJobs(plots, 4096);
+    }
+
+    public static boolean isBusy(PlotData data) { return data != null && BUSY_PLOTS.contains(data); }
+
+    /** Main-thread preflight used before committing ownership/style changes that require a job. */
+    public static boolean canQueueWorldJob() { return WORLD_JOBS.size() < MAX_WORLD_JOBS; }
+
+    /** Coalesced small canonical repaint, used when portals are removed in bulk. */
+    public static void requestRepaint(int centerX, int centerZ, int radius) {
+        for (int x = centerX - radius; x <= centerX + radius; x++) {
+            for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                long key = (((long) x) << 32) | (z & 0xFFFFFFFFL);
+                if (SMALL_REPAINT_SET.add(key)) SMALL_REPAINTS.offer(key);
+            }
+        }
+    }
+
+    private static int queueColumns(ServerLevel level, int xStart, int xEnd, int zStart, int zEnd,
+                                    PlotData busyPlot, ColumnAction action, Runnable finished) {
+        if (xStart > xEnd || zStart > zEnd || WORLD_JOBS.size() >= MAX_WORLD_JOBS) return -1;
+        if (busyPlot != null && !BUSY_PLOTS.add(busyPlot)) return -1;
+        Runnable completion = () -> {
+            try { if (finished != null) finished.run(); }
+            finally { if (busyPlot != null) BUSY_PLOTS.remove(busyPlot); }
+        };
+        WORLD_JOBS.offer(new ColumnJob(level, xStart, xEnd, zStart, zEnd, action, completion));
+        long columns = (long) (xEnd - xStart + 1) * (zEnd - zStart + 1);
+        return columns > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) columns;
+    }
+
     public static int repaint(ServerLevel level, int centerX, int centerZ, int radius) {
         final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         final Setter setter = (x, y, z, s) -> {
@@ -117,19 +224,16 @@ public final class PlotWorldPainter {
             if (PortalManager.isProtected(pos)) return; // never paint over a live exit portal
             level.setBlock(pos, s, Block.UPDATE_CLIENTS);
         };
-        int columns = 0;
-        for (int x = centerX - radius; x <= centerX + radius; x++)
-            for (int z = centerZ - radius; z <= centerZ + radius; z++)
-                if (paintBase(x, z, setter, true)) columns++;
-        if (REPAINT_FURNITURE)
-            for (int x = centerX - radius; x <= centerX + radius; x++)
-                for (int z = centerZ - radius; z <= centerZ + radius; z++) decorate(x, z, setter);
-        return columns;
+        return queueColumns(level, centerX - radius, centerX + radius, centerZ - radius, centerZ + radius,
+                null, (x, z) -> {
+                    paintBase(x, z, setter, true);
+                    if (REPAINT_FURNITURE) decorate(x, z, setter);
+                }, null);
     }
 
     /** Repaint a freshly-merged region: wipe its cells to grass, dissolve interior roads, repaint the perimeter. */
-    public static void combineRepaint(ServerLevel level, java.util.Collection<PlotPos> cells) {
-        if (cells.isEmpty()) return;
+    public static int combineRepaint(ServerLevel level, java.util.Collection<PlotPos> cells) {
+        if (cells.isEmpty()) return 0;
         int pxMin = Integer.MAX_VALUE, pxMax = Integer.MIN_VALUE, pzMin = Integer.MAX_VALUE, pzMax = Integer.MIN_VALUE;
         for (PlotPos c : cells) {
             pxMin = Math.min(pxMin, c.px()); pxMax = Math.max(pxMax, c.px());
@@ -147,22 +251,23 @@ public final class PlotWorldPainter {
             level.setBlock(pos, s, Block.UPDATE_CLIENTS);
         };
 
-        for (int x = xStart; x <= xEnd; x++) {
-            for (int z = zStart; z <= zEnd; z++) {
-                boolean core = Math.floorMod(x, PlotConfig.STEP) < PlotConfig.PLOT_SIZE
-                        && Math.floorMod(z, PlotConfig.STEP) < PlotConfig.PLOT_SIZE;
-                if (core && PlotManager.owningPlot(x, z) == merge) {
-                    // Merged cell core → reset the WHOLE column top-to-bottom (clears towers AND tunnels).
-                    resetColumn(level, x, z, surfaceFor(merge));
-                } else {
-                    // Non-core: paintBase fills merged interior with the plot's floor block, keeps the
-                    // perimeter as tuff/stair/road, and leaves neighbouring (non-merged) plot cores untouched.
-                    paintBase(x, z, setter, true);
-                }
+        PlotMobGuard.purgeAllEntities(level, merge);
+        return queueColumns(level, xStart, xEnd, zStart, zEnd, merge, (x, z) -> {
+            boolean core = Math.floorMod(x, PlotConfig.STEP) < PlotConfig.PLOT_SIZE
+                    && Math.floorMod(z, PlotConfig.STEP) < PlotConfig.PLOT_SIZE;
+            if (core && PlotManager.owningPlot(x, z) == merge) {
+                // Merged cell core → reset the WHOLE column top-to-bottom (clears towers AND tunnels).
+                resetColumn(level, x, z, surfaceFor(merge));
+            } else {
+                // Non-core: paintBase fills merged interior with the plot's floor block, keeps the
+                // perimeter as tuff/stair/road, and leaves neighbouring (non-merged) plot cores untouched.
+                paintBase(x, z, setter, true);
             }
-        }
-        for (int x = xStart; x <= xEnd; x++)
-            for (int z = zStart; z <= zEnd; z++) decorate(x, z, setter);
+            decorate(x, z, setter);
+        }, () -> {
+            if (!merge.sidewalkPattern.isBlank()) PlotStyle.applySidewalk(level, merge);
+            if (!merge.wallPattern.isBlank()) PlotStyle.applyWall(level, merge);
+        });
     }
 
     /** The surface block a plot's floor should use — the owner's chosen block, or grass by default. */
@@ -196,16 +301,11 @@ public final class PlotWorldPainter {
         final int xEnd = pxMax * PlotConfig.STEP + PlotConfig.PLOT_SIZE + PlotConfig.SIDEWALK_DEPTH;
         final int zStart = pzMin * PlotConfig.STEP - PlotConfig.SIDEWALK_DEPTH;
         final int zEnd = pzMax * PlotConfig.STEP + PlotConfig.PLOT_SIZE + PlotConfig.SIDEWALK_DEPTH;
-        int columns = 0;
-        for (int x = xStart; x <= xEnd; x++) {
-            for (int z = zStart; z <= zEnd; z++) {
-                if (PlotManager.owningPlot(x, z) != data) continue;  // other plots / roads untouched
-                if (PlotManager.nearMergeEdge(x, z)) continue;       // sidewalk band stays sidewalk
-                setIfDiff(level, x, PlotConfig.GROUND_Y, z, surface);
-                columns++;
-            }
-        }
-        return columns;
+        return queueColumns(level, xStart, xEnd, zStart, zEnd, data, (x, z) -> {
+            if (PlotManager.owningPlot(x, z) != data) return;  // other plots / roads untouched
+            if (PlotManager.nearMergeEdge(x, z)) return;       // sidewalk band stays sidewalk
+            setIfDiff(level, x, PlotConfig.GROUND_Y, z, surface);
+        }, null);
     }
 
     /**
@@ -227,20 +327,16 @@ public final class PlotWorldPainter {
         final int xEnd = pxMax * PlotConfig.STEP + PlotConfig.PLOT_SIZE + PlotConfig.SIDEWALK_DEPTH;
         final int zStart = pzMin * PlotConfig.STEP - PlotConfig.SIDEWALK_DEPTH;
         final int zEnd = pzMax * PlotConfig.STEP + PlotConfig.PLOT_SIZE + PlotConfig.SIDEWALK_DEPTH;
-        int columns = 0;
-        for (int x = xStart; x <= xEnd; x++) {
-            for (int z = zStart; z <= zEnd; z++) {
-                if (PlotManager.owningPlot(x, z) != data) continue; // other plots / roads stay untouched
-                resetColumn(level, x, z, PlotManager.nearMergeEdge(x, z) ? SIDEWALK : surface);
-                columns++;
-            }
-        }
-        // Designer styling survives a clear, like the floor block does.
-        if (!data.sidewalkPattern.isBlank()) PlotStyle.applySidewalk(level, data);
-        if (!data.wallPattern.isBlank()) PlotStyle.applyWall(level, data);
         // A clear means a CLEAR: no leftover mobs, dropped items, armor stands, boats…
         PlotMobGuard.purgeAllEntities(level, data);
-        return columns;
+        return queueColumns(level, xStart, xEnd, zStart, zEnd, data, (x, z) -> {
+            if (PlotManager.owningPlot(x, z) != data) return; // other plots / roads stay untouched
+            resetColumn(level, x, z, PlotManager.nearMergeEdge(x, z) ? SIDEWALK : surface);
+        }, () -> {
+            // Designer styling survives a clear, like the floor block does.
+            if (!data.sidewalkPattern.isBlank()) PlotStyle.applySidewalk(level, data);
+            if (!data.wallPattern.isBlank()) PlotStyle.applyWall(level, data);
+        });
     }
 
     /**
@@ -264,8 +360,8 @@ public final class PlotWorldPainter {
     }
 
     /** Repaint the bounding box of some cells (re-cuts roads between them) without touching plot interiors. */
-    public static void repaintCells(ServerLevel level, java.util.Collection<PlotPos> cells) {
-        if (cells.isEmpty()) return;
+    public static int repaintCells(ServerLevel level, java.util.Collection<PlotPos> cells) {
+        if (cells.isEmpty()) return 0;
         int pxMin = Integer.MAX_VALUE, pxMax = Integer.MIN_VALUE, pzMin = Integer.MAX_VALUE, pzMax = Integer.MIN_VALUE;
         for (PlotPos c : cells) {
             pxMin = Math.min(pxMin, c.px()); pxMax = Math.max(pxMax, c.px());
@@ -281,8 +377,10 @@ public final class PlotWorldPainter {
             if (PortalManager.isProtected(pos)) return;
             level.setBlock(pos, s, Block.UPDATE_CLIENTS);
         };
-        for (int x = xStart; x <= xEnd; x++) for (int z = zStart; z <= zEnd; z++) paintBase(x, z, setter, true);
-        for (int x = xStart; x <= xEnd; x++) for (int z = zStart; z <= zEnd; z++) decorate(x, z, setter);
+        return queueColumns(level, xStart, xEnd, zStart, zEnd, null, (x, z) -> {
+            paintBase(x, z, setter, true);
+            decorate(x, z, setter);
+        }, null);
     }
 
     // ---- post-generation furniture (block-entities are safe here, unlike CHUNK_GENERATE) ----
@@ -298,9 +396,9 @@ public final class PlotWorldPainter {
         decoratedFile = server.getWorldPath(LevelResource.ROOT).resolve("fabricplots-decorated.txt");
         DECORATED.clear();
         decoratedDirty = false;
-        if (!Files.exists(decoratedFile)) return;
+        if (!AtomicFiles.exists(decoratedFile)) return;
         try {
-            for (String line : Files.readAllLines(decoratedFile))
+            for (String line : AtomicFiles.readLines(decoratedFile))
                 if (!line.isBlank()) DECORATED.add(Long.parseLong(line.trim()));
         } catch (Exception e) {
             System.err.println("[FabricPlots] failed to load decorated chunks: " + e);
@@ -312,7 +410,7 @@ public final class PlotWorldPainter {
         try {
             List<String> lines = new ArrayList<>(DECORATED.size());
             for (Long k : DECORATED) lines.add(Long.toString(k));
-            Files.write(decoratedFile, lines);
+            AtomicFiles.writeLines(decoratedFile, lines);
             decoratedDirty = false;
         } catch (Exception e) {
             System.err.println("[FabricPlots] failed to save decorated chunks: " + e);

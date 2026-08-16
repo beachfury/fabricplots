@@ -39,9 +39,14 @@ public final class PlotEditAccess implements EditAccess {
     @Override
     public boolean canEdit(ServerPlayer p, boolean admin, int x, int y, int z) {
         if (y < PlotConfig.DIRT_BOTTOM_Y || y > PlotConfig.WORLD_TOP_Y) return false;
-        if (PortalManager.isProtected(new BlockPos(x, y, z))) return false;
-        if (admin) return true;
+        BlockPos pos = new BlockPos(x, y, z);
+        if (PortalManager.isProtected(pos)) return false;
+        // DraftSmith 1.0 history stores block states only, not container/sign NBT. Preserve any
+        // existing block entity; the companion mixin also rejects creating a new one via the editor.
+        if (p.level().getBlockEntity(pos) != null) return false;
         PlotData d = PlotManager.owningPlot(x, z);
+        if (PlotWorldPainter.isBusy(d)) return false;
+        if (admin) return true;
         return d != null && d.canBuild(p.getUUID());
     }
 
@@ -61,9 +66,6 @@ public final class PlotEditAccess implements EditAccess {
         PlotData plot = PlotManager.owningPlot(x, z);
         return new Ground(PlotConfig.GROUND_Y, plot != null ? PlotWorldPainter.surfaceFor(plot) : null);
     }
-
-    @Override
-    public String commandRoot() { return "plot"; }
 
     @Override
     public String messagePrefix() { return "[Plots] "; }

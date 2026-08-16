@@ -60,6 +60,28 @@ public final class PlotMenus {
         return false;
     }
 
+    /** Re-fetch and re-authorize immediately before a menu callback mutates a plot. */
+    private static PlotData editable(ServerPlayer sp, PlotPos anchor, String node) {
+        if (node != null && !allowed(sp, node)) return null;
+        PlotData current = PlotManager.get(anchor);
+        if (current != null && !PlotWorldPainter.isBusy(current)
+                && (current.owner.equals(sp.getUUID()) || PlotProtection.isAdmin(sp))) return current;
+        if (PlotWorldPainter.isBusy(current)) {
+            sp.sendSystemMessage(Component.literal("[Plots] That plot is being updated; try again when it finishes."));
+            sp.closeContainer();
+            return null;
+        }
+        sp.sendSystemMessage(Component.literal("[Plots] You no longer have permission to edit that plot."));
+        sp.closeContainer();
+        return null;
+    }
+
+    private static boolean update(ServerPlayer sp, PlotData data, Consumer<PlotData> mutation) {
+        if (PlotManager.update(data, mutation)) return true;
+        sp.sendSystemMessage(Component.literal("[Plots] That change could not be saved; nothing was changed."));
+        return false;
+    }
+
     // ---- hub -------------------------------------------------------------
 
     public static void hub(ServerPlayer sp) {
@@ -144,7 +166,11 @@ public final class PlotMenus {
         g.setTitle(Component.literal(title));
         g.setSlot(10, btn(Items.NAME_TAG, "Rename plot", "Currently: " + (d.name.isBlank() ? "(unnamed)" : d.name), (i, t, a, gg) -> {
                 if (!allowed(sp, "fabricplots.rename")) return;
-                anvil(sp, "Plot name", d.name, txt -> { d.name = clean(txt); PlotManager.save(); settings(sp, anchor); }); }));
+                anvil(sp, "Plot name", d.name, txt -> {
+                    PlotData current = editable(sp, anchor, "fabricplots.rename");
+                    if (current == null) return;
+                    if (update(sp, current, plot -> plot.name = clean(txt))) settings(sp, anchor);
+                }); }));
         g.setSlot(11, btn(floorItem(d), "Floor block", "Currently: " + floorName(d) + ". Click to recolor your plot's ground.",
                 (i, t, a, gg) -> { if (allowed(sp, "fabricplots.floor")) floorPicker(sp, anchor, 0); }));
         g.setSlot(12, btn(Items.CHISELED_TUFF_BRICKS, "Sidewalk designer",
@@ -162,7 +188,11 @@ public final class PlotMenus {
         }));
         g.setSlot(19, btn(d.pvp ? Items.DIAMOND_SWORD : Items.SHIELD, "PvP: " + (d.pvp ? "ON" : "OFF"),
                 d.pvp ? "Players can fight here. Click to make it safe." : "This plot is safe. Click to allow PvP.",
-                (i, t, a, gg) -> { if (!allowed(sp, "fabricplots.pvp")) return; d.pvp = !d.pvp; PlotManager.save(); settings(sp, anchor); }));
+                (i, t, a, gg) -> {
+                    PlotData current = editable(sp, anchor, "fabricplots.pvp");
+                    if (current == null) return;
+                    if (update(sp, current, plot -> plot.pvp = !plot.pvp)) settings(sp, anchor);
+                }));
         g.setSlot(20, btn(Items.CLOCK, "Sky & weather",
                 ambienceLabel(d) + " — what visitors see while on your plot.",
                 (i, t, a, gg) -> { if (allowed(sp, "fabricplots.ambience")) ambiencePicker(sp, anchor); }));
@@ -170,13 +200,17 @@ public final class PlotMenus {
                 d.greeting.isBlank() ? "Set a custom welcome for visitors." : "Currently: \"" + d.greeting + "\"",
                 (i, t, a, gg) -> { if (!allowed(sp, "fabricplots.greeting")) return;
                     anvil(sp, "Greeting (visitors see this)", d.greeting, txt -> {
-                        d.greeting = clean(txt); PlotManager.save(); settings(sp, anchor);
+                        PlotData current = editable(sp, anchor, "fabricplots.greeting");
+                        if (current == null) return;
+                        if (update(sp, current, plot -> plot.greeting = clean(txt))) settings(sp, anchor);
                     }); }));
         g.setSlot(22, btn(Items.ENDER_EYE, "Transfer plot", "Give this plot to another player.",
                 (i, t, a, gg) -> { if (allowed(sp, "fabricplots.transfer")) transferPicker(sp, anchor, 0); }));
         g.setSlot(23, btn(Items.FEATHER, "Kick visitors", "Send everyone else on this plot to spawn.", (i, t, a, gg) -> {
             if (!allowed(sp, "fabricplots.kick")) return;
-            int n = kickVisitors(sp, d);
+            PlotData current = editable(sp, anchor, "fabricplots.kick");
+            if (current == null) return;
+            int n = kickVisitors(sp, current);
             sp.sendSystemMessage(Component.literal("[Plots] Sent " + n + " visitor" + (n == 1 ? "" : "s") + " to spawn."));
             settings(sp, anchor);
         }));
@@ -217,10 +251,11 @@ public final class PlotMenus {
                 d.spawnHostile ? "Your biome's monsters may spawn. Click to clear them and turn it off."
                                : "No monsters spawn here. Click to allow them.",
                 (i, t, a, gg) -> {
-                    d.spawnHostile = !d.spawnHostile;
-                    PlotManager.save();
-                    if (!d.spawnHostile) {
-                        int n = PlotMobGuard.purgeCategory(plots(sp), d, true);
+                    PlotData current = editable(sp, anchor, "fabricplots.mobs");
+                    if (current == null) return;
+                    if (!update(sp, current, plot -> plot.spawnHostile = !plot.spawnHostile)) return;
+                    if (!current.spawnHostile) {
+                        int n = PlotMobGuard.purgeCategory(plots(sp), current, true);
                         sp.sendSystemMessage(Component.literal("[Plots] Hostile spawns off — removed " + n + " mob" + (n == 1 ? "" : "s") + "."));
                     }
                     mobSpawnPicker(sp, anchor);
@@ -230,10 +265,11 @@ public final class PlotMenus {
                 d.spawnPassive ? "Your biome's animals may spawn. Click to clear them and turn it off."
                                : "No animals spawn here. Click to allow them.",
                 (i, t, a, gg) -> {
-                    d.spawnPassive = !d.spawnPassive;
-                    PlotManager.save();
-                    if (!d.spawnPassive) {
-                        int n = PlotMobGuard.purgeCategory(plots(sp), d, false);
+                    PlotData current = editable(sp, anchor, "fabricplots.mobs");
+                    if (current == null) return;
+                    if (!update(sp, current, plot -> plot.spawnPassive = !plot.spawnPassive)) return;
+                    if (!current.spawnPassive) {
+                        int n = PlotMobGuard.purgeCategory(plots(sp), current, false);
                         sp.sendSystemMessage(Component.literal("[Plots] Passive spawns off — removed " + n + " mob" + (n == 1 ? "" : "s") + "."));
                     }
                     mobSpawnPicker(sp, anchor);
@@ -246,12 +282,14 @@ public final class PlotMenus {
         g.setSlot(13, btn(Items.SPAWNER, "Mob cap: " + capShown + " (server max " + ceiling + ")",
                 "How many mobs may live here, per plot cell. Left-click +1, right-click -1.",
                 (i, t, a, gg) -> {
-                    int cur = d.mobCap < 0 ? PlotsConfig.mobCapPerPlot : d.mobCap;
-                    d.mobCap = Math.max(0, Math.min(ceiling, t.isRight ? cur - 1 : cur + 1));
-                    PlotManager.save();
-                    mobSpawnPicker(sp, anchor);
+                    PlotData current = editable(sp, anchor, "fabricplots.mobs");
+                    if (current == null) return;
+                    int currentCeiling = PlotMobGuard.capCeiling(sp.level().getServer(), current);
+                    int cur = current.mobCap < 0 ? PlotsConfig.mobCapPerPlot : current.mobCap;
+                    int next = Math.max(0, Math.min(currentCeiling, t.isRight ? cur - 1 : cur + 1));
+                    if (update(sp, current, plot -> plot.mobCap = next)) mobSpawnPicker(sp, anchor);
                 }));
-        g.setSlot(22, btn(Items.ARROW, "Back", "Named mobs (pets) are never touched.", (i, t, a, gg) -> settings(sp, anchor)));
+        g.setSlot(22, btn(Items.ARROW, "Back", "Genuinely tamed pets are never touched.", (i, t, a, gg) -> settings(sp, anchor)));
         g.open();
     }
 
@@ -281,9 +319,10 @@ public final class PlotMenus {
             g.setSlot(slot++, btn(itemByRegistryId(PlotBiomes.iconFor(id)),
                     PlotBiomes.labelOf(id) + (chosen ? "  ✔" : ""), lore,
                     (i, t, a, gg) -> {
-                        d.biomeId = id;
-                        PlotManager.save();
-                        int n = PlotBiomes.applyBiome(plots(sp), d);
+                        PlotData currentData = editable(sp, anchor, "fabricplots.biome");
+                        if (currentData == null) return;
+                        if (!update(sp, currentData, plot -> plot.biomeId = id)) return;
+                        int n = PlotBiomes.applyBiome(plots(sp), currentData);
                         sp.sendSystemMessage(Component.literal("[Plots] Biome set to " + PlotBiomes.labelOf(id)
                                 + (n > 0 ? "." : " (no chunks updated — is the plot world loaded?)")));
                         biomePicker(sp, anchor, pg);
@@ -294,9 +333,10 @@ public final class PlotMenus {
         boolean isDefault = d.biomeId.isBlank();
         g.setSlot(47, btn(Items.GRASS_BLOCK, "Default" + (isDefault ? "  ✔" : ""),
                 "The plot world's normal look.", (i, t, a, gg) -> {
-            d.biomeId = "";
-            PlotManager.save();
-            PlotBiomes.applyBiome(plots(sp), d);
+            PlotData currentData = editable(sp, anchor, "fabricplots.biome");
+            if (currentData == null) return;
+            if (!update(sp, currentData, plot -> plot.biomeId = "")) return;
+            PlotBiomes.applyBiome(plots(sp), currentData);
             sp.sendSystemMessage(Component.literal("[Plots] Biome reset to default."));
             biomePicker(sp, anchor, pg);
         }));
@@ -335,7 +375,12 @@ public final class PlotMenus {
             boolean chosen = time.equals(curTime);
             g.setSlot(1 + i, btn(timeIcons[i], niceWord(time) + (chosen ? "  ✔" : ""),
                     "real".equals(time) ? "Use the real time of day." : "Visitors always see " + time + " here.",
-                    (x, t, a, gg) -> { d.ambience = PlotAmbience.compose(time, PlotAmbience.weatherOf(d.ambience.isBlank() ? "real:real" : d.ambience)); PlotManager.save(); ambiencePicker(sp, anchor); }));
+                    (x, t, a, gg) -> {
+                        PlotData current = editable(sp, anchor, "fabricplots.ambience");
+                        if (current == null) return;
+                        String next = PlotAmbience.compose(time, PlotAmbience.weatherOf(current.ambience.isBlank() ? "real:real" : current.ambience));
+                        if (update(sp, current, plot -> plot.ambience = next)) ambiencePicker(sp, anchor);
+                    }));
         }
         Item[] weatherIcons = { Items.COMPASS, Items.GLASS, Items.WATER_BUCKET, Items.TRIDENT };
         for (int i = 0; i < PlotAmbience.WEATHERS.length; i++) {
@@ -343,9 +388,18 @@ public final class PlotMenus {
             boolean chosen = weather.equals(curWeather);
             g.setSlot(10 + i, btn(weatherIcons[i], niceWord(weather) + (chosen ? "  ✔" : ""),
                     "real".equals(weather) ? "Use the real weather." : "Visitors always see " + weather + " here.",
-                    (x, t, a, gg) -> { d.ambience = PlotAmbience.compose(PlotAmbience.timeOf(d.ambience.isBlank() ? "real:real" : d.ambience), weather); PlotManager.save(); ambiencePicker(sp, anchor); }));
+                    (x, t, a, gg) -> {
+                        PlotData current = editable(sp, anchor, "fabricplots.ambience");
+                        if (current == null) return;
+                        String next = PlotAmbience.compose(PlotAmbience.timeOf(current.ambience.isBlank() ? "real:real" : current.ambience), weather);
+                        if (update(sp, current, plot -> plot.ambience = next)) ambiencePicker(sp, anchor);
+                    }));
         }
-        g.setSlot(16, btn(Items.TNT, "Reset", "Back to the real sky.", (x, t, a, gg) -> { d.ambience = ""; PlotManager.save(); ambiencePicker(sp, anchor); }));
+        g.setSlot(16, btn(Items.TNT, "Reset", "Back to the real sky.", (x, t, a, gg) -> {
+            PlotData current = editable(sp, anchor, "fabricplots.ambience");
+            if (current == null) return;
+            if (update(sp, current, plot -> plot.ambience = "")) ambiencePicker(sp, anchor);
+        }));
         g.setSlot(22, btn(Items.ARROW, "Back", "", (x, t, a, gg) -> settings(sp, anchor)));
         g.open();
     }
@@ -382,13 +436,14 @@ public final class PlotMenus {
         g.setTitle(Component.literal("Give this plot to " + newName + "?"));
         g.setSlot(11, btn(itemOf("minecraft:lime_concrete"), "Yes, transfer it",
                 "You lose access unless they trust you back.", (i, t, a, gg) -> {
-            PlotData d = PlotManager.get(anchor);
-            if (d != null) {
-                d.owner = newOwner;
-                d.ownerName = newName;
-                d.trusted.remove(newOwner);
-                d.denied.remove(newOwner);
-                PlotManager.save();
+            PlotData d = editable(sp, anchor, "fabricplots.transfer");
+            if (d != null && !newOwner.equals(d.owner)) {
+                if (!update(sp, d, plot -> {
+                    plot.owner = newOwner;
+                    plot.ownerName = newName;
+                    plot.trusted.remove(newOwner);
+                    plot.denied.remove(newOwner);
+                })) return;
                 sp.sendSystemMessage(Component.literal("[Plots] Plot transferred to " + newName + "."));
                 ServerPlayer np = sp.level().getServer().getPlayerList().getPlayer(newOwner);
                 if (np != null) np.sendSystemMessage(Component.literal("[Plots] " + sp.getName().getString() + " gave you their plot!"));
@@ -447,9 +502,16 @@ public final class PlotMenus {
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x3, sp, false);
         g.setTitle(Component.literal("Clear this plot?"));
         g.setSlot(11, btn(Items.LIME_CONCRETE, "Yes, clear it", "Wipes the whole plot to flat ground.", (i, t, a, gg) -> {
-            PlotData d = PlotManager.get(anchor);
-            if (d != null) { PlotWorldPainter.clearPlot(plots(sp), d); sp.sendSystemMessage(Component.literal("[Plots] Plot cleared.")); }
-            settings(sp, anchor);
+            PlotData d = editable(sp, anchor, "fabricplots.clear");
+            if (d == null) return;
+            if (!PlotWorldPainter.canQueueWorldJob()) {
+                sp.sendSystemMessage(Component.literal("[Plots] The world-update queue is full. Try again shortly."));
+                return;
+            }
+            int n = PlotWorldPainter.clearPlot(plots(sp), d);
+            if (n < 0) sp.sendSystemMessage(Component.literal("[Plots] That plot is already being updated."));
+            else sp.sendSystemMessage(Component.literal("[Plots] Plot clear started safely in the background."));
+            sp.closeContainer();
         }));
         g.setSlot(15, btn(Items.RED_CONCRETE, "No, go back", "", (i, t, a, gg) -> settings(sp, anchor)));
         g.open();
@@ -458,8 +520,8 @@ public final class PlotMenus {
     // ---- trusted / denied member lists -----------------------------------
 
     public static void members(ServerPlayer sp, PlotPos anchor, boolean deny, int page) {
-        PlotData d = PlotManager.get(anchor);
-        if (d == null) { sp.closeContainer(); return; }
+        PlotData d = editable(sp, anchor, null);
+        if (d == null) return;
         List<UUID> ids = new ArrayList<>(deny ? d.denied : d.trusted);
         SimpleGui g = new SimpleGui(MenuType.GENERIC_9x6, sp, false);
         g.setTitle(Component.literal((deny ? "Denied" : "Trusted") + " players (" + ids.size() + ")"));
@@ -469,7 +531,12 @@ public final class PlotMenus {
             g.setSlot(i, GuiCompat.head(sp.level().getServer(), id)
                     .setName(Component.literal(nameOf(sp, id)))
                     .setLore(List.of(Component.literal("Click to remove")))
-                    .setCallback((x, t, a, gg) -> { (deny ? d.denied : d.trusted).remove(id); PlotManager.save(); members(sp, anchor, deny, page); }).build());
+                    .setCallback((x, t, a, gg) -> {
+                        PlotData current = editable(sp, anchor, null);
+                        if (current == null) return;
+                        if (update(sp, current, plot -> (deny ? plot.denied : plot.trusted).remove(id)))
+                            members(sp, anchor, deny, page);
+                    }).build());
         }
         nav(g, page, start + PER_PAGE < ids.size(), p -> members(sp, anchor, deny, p), () -> settings(sp, anchor));
         g.setSlot(50, btn(Items.EMERALD, "Add player", "Pick from online players or search a name.", (i, t, a, gg) -> picker(sp, anchor, deny, 0)));
@@ -479,8 +546,8 @@ public final class PlotMenus {
     // ---- player picker (online heads + name search) ----------------------
 
     public static void picker(ServerPlayer sp, PlotPos anchor, boolean deny, int page) {
-        PlotData d = PlotManager.get(anchor);
-        if (d == null) { sp.closeContainer(); return; }
+        PlotData d = editable(sp, anchor, null);
+        if (d == null) return;
         Set<UUID> already = deny ? d.denied : d.trusted;
         List<ServerPlayer> online = new ArrayList<>();
         for (ServerPlayer pl : sp.level().getServer().getPlayerList().getPlayers())
@@ -494,14 +561,21 @@ public final class PlotMenus {
             g.setSlot(i, GuiCompat.head(sp.level().getServer(), pl.getUUID())
                     .setName(Component.literal(pl.getName().getString()))
                     .setLore(List.of(Component.literal("Click to add")))
-                    .setCallback((x, t, a, gg) -> { addMember(d, pl.getUUID(), deny); PlotManager.save(); members(sp, anchor, deny, 0); }).build());
+                    .setCallback((x, t, a, gg) -> {
+                        PlotData current = editable(sp, anchor, null);
+                        if (current == null) return;
+                        if (update(sp, current, plot -> addMember(plot, pl.getUUID(), deny)))
+                            members(sp, anchor, deny, 0);
+                    }).build());
         }
         nav(g, page, start + PER_PAGE < online.size(), p -> picker(sp, anchor, deny, p), () -> members(sp, anchor, deny, 0));
         g.setSlot(50, btn(Items.OAK_SIGN, "Search by name", "Type an online player's name.", (i, t, a, gg) ->
                 anvil(sp, "Player name", "", name -> {
                     UUID id = resolve(sp.level().getServer(), name);
                     if (id == null) { sp.sendSystemMessage(Component.literal("[Plots] No online player named \"" + name + "\".")); members(sp, anchor, deny, 0); return; }
-                    addMember(d, id, deny); PlotManager.save(); members(sp, anchor, deny, 0);
+                    PlotData current = editable(sp, anchor, null);
+                    if (current == null) return;
+                    if (update(sp, current, plot -> addMember(plot, id, deny))) members(sp, anchor, deny, 0);
                 })));
         if (online.isEmpty()) g.setSlot(22, info(Items.BARRIER, "No online players", "Use Search by name instead."));
         g.open();
@@ -569,16 +643,32 @@ public final class PlotMenus {
             g.setSlot(slot++, new GuiElementBuilder(itemOf(id))
                     .setName(Component.literal(prettyName(id) + (chosen ? "  ✔" : "")))
                     .setCallback((x, t, a, gg) -> {
-                        d.floorBlockId = id.equals("minecraft:grass_block") ? "" : id; // grass == default
-                        PlotManager.save();
-                        PlotWorldPainter.applyFloor(plots(sp), d);
-                        floorPicker(sp, anchor, pg);
+                        PlotData current = editable(sp, anchor, "fabricplots.floor");
+                        if (current == null) return;
+                        if (!PlotWorldPainter.canQueueWorldJob()) {
+                            sp.sendSystemMessage(Component.literal("[Plots] The world-update queue is full. Try again shortly."));
+                            return;
+                        }
+                        String next = id.equals("minecraft:grass_block") ? "" : id; // grass == default
+                        if (!update(sp, current, plot -> plot.floorBlockId = next)) return;
+                        PlotWorldPainter.applyFloor(plots(sp), current);
+                        sp.sendSystemMessage(Component.literal("[Plots] Floor update started in the background."));
+                        sp.closeContainer();
                     }).build());
         }
         // bottom row: paging + reset + back
         if (pg > 0) g.setSlot(45, btn(Items.ARROW, "Previous page", "", (i, t, a, gg) -> floorPicker(sp, anchor, pg - 1)));
         g.setSlot(47, btn(Items.GRASS_BLOCK, "Default (grass)", "Reset to plain grass.", (i, t, a, gg) -> {
-            d.floorBlockId = ""; PlotManager.save(); PlotWorldPainter.applyFloor(plots(sp), d); floorPicker(sp, anchor, pg);
+            PlotData current = editable(sp, anchor, "fabricplots.floor");
+            if (current == null) return;
+            if (!PlotWorldPainter.canQueueWorldJob()) {
+                sp.sendSystemMessage(Component.literal("[Plots] The world-update queue is full. Try again shortly."));
+                return;
+            }
+            if (!update(sp, current, plot -> plot.floorBlockId = "")) return;
+            PlotWorldPainter.applyFloor(plots(sp), current);
+            sp.sendSystemMessage(Component.literal("[Plots] Floor reset started in the background."));
+            sp.closeContainer();
         }));
         g.setSlot(49, btn(Items.BARRIER, "Back", "", (i, t, a, gg) -> settings(sp, anchor)));
         g.setSlot(51, info(Items.PAPER, "Page " + (pg + 1) + " / " + pages, palette.size() + " blocks"));
@@ -632,9 +722,12 @@ public final class PlotMenus {
                     liked ? "Remove your like." : "Like this plot.",
                     (i, t, a, gg) -> {
                         if (!allowed(sp, "fabricplots.like")) return;
-                        if (!d.likes.remove(sp.getUUID())) d.likes.add(sp.getUUID());
-                        PlotManager.save();
-                        plotView(sp, anchor, back);
+                        PlotData current = PlotManager.get(anchor);
+                        if (current == null) { back.run(); return; }
+                        if (current.owner.equals(sp.getUUID())) { plotView(sp, anchor, back); return; }
+                        if (update(sp, current, plot -> {
+                            if (!plot.likes.remove(sp.getUUID())) plot.likes.add(sp.getUUID());
+                        })) plotView(sp, anchor, back);
                     }));
         }
         g.setSlot(22, btn(Items.ARROW, "Back", "", (i, t, a, gg) -> back.run()));

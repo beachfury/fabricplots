@@ -6,14 +6,15 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Plot grid math + ownership registry + flat-file persistence.
@@ -80,61 +81,138 @@ public final class PlotManager {
 
     public static boolean isClaimed(PlotPos p) { return PLOTS.containsKey(p); }
 
-    public static void claim(PlotPos p, UUID owner, String ownerName) {
+    /** Claim and durably persist one cell. The in-memory mutation is rolled back on save failure. */
+    public static boolean claim(PlotPos p, UUID owner, String ownerName, long paidAmount) {
         PlotData d = new PlotData(owner, ownerName);
+        d.paidAmount = paidAmount;
         d.cells.add(p);
-        PLOTS.put(p, d);
-        save();
+        if (PLOTS.putIfAbsent(p, d) != null) return false;
+        if (save()) return true;
+        PLOTS.remove(p, d);
+        return false;
     }
 
-    public static void unclaim(PlotPos p) {
+    /** Release a complete merge group, rolling the registry back when persistence fails. */
+    public static boolean unclaim(PlotPos p) {
         PlotData d = PLOTS.get(p);
-        if (d != null) for (PlotPos c : d.cells) PLOTS.remove(c); // removes the whole merge group
-        else PLOTS.remove(p);
-        save();
+        if (d == null) return false;
+        for (PlotPos c : d.cells) PLOTS.remove(c, d); // removes the whole merge group
+        if (save()) return true;
+        for (PlotPos c : d.cells) PLOTS.put(c, d);
+        return false;
     }
 
     /** Merge several cells into one plot owned by {@code owner}, dissolving any old groups they were in. */
-    public static void combine(java.util.Collection<PlotPos> cells, UUID owner, String ownerName) {
+    public static boolean combine(java.util.Collection<PlotPos> cells, UUID owner, String ownerName) {
+        java.util.Set<PlotPos> selected = new java.util.HashSet<>(cells);
+        for (PlotPos cell : selected) {
+            PlotData existing = PLOTS.get(cell);
+            if (existing != null && !selected.containsAll(existing.cells)) return false;
+        }
+        Map<PlotPos, PlotData> before = new HashMap<>(PLOTS);
         // Carry the paid amounts of the merged plots into the combined plot (for refund accounting).
         java.util.Set<PlotData> olds = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-        for (PlotPos c : cells) { PlotData o = PLOTS.get(c); if (o != null) olds.add(o); }
+        PlotData template = null;
+        for (PlotPos c : cells) {
+            PlotData o = PLOTS.get(c);
+            if (o != null) { olds.add(o); if (template == null) template = o; }
+        }
         long paidSum = 0;
         for (PlotData o : olds) { paidSum += o.paidAmount; for (PlotPos oc : new ArrayList<>(o.cells)) PLOTS.remove(oc); }
         PlotData d = new PlotData(owner, ownerName);
+        if (template != null) copySettings(template, d);
         d.paidAmount = paidSum;
         d.cells.addAll(cells);
         for (PlotPos c : cells) PLOTS.put(c, d);
-        save();
+        if (save()) return true;
+        PLOTS.clear();
+        PLOTS.putAll(before);
+        return false;
+    }
+
+    /** Preserve the anchor plot's identity/style when merging or splitting ownership groups. */
+    private static void copySettings(PlotData from, PlotData to) {
+        to.name = from.name;
+        to.home = from.home;
+        to.floorBlockId = from.floorBlockId;
+        to.pvp = from.pvp;
+        to.greeting = from.greeting;
+        to.ambience = from.ambience;
+        to.biomeId = from.biomeId;
+        to.spawnHostile = from.spawnHostile;
+        to.spawnPassive = from.spawnPassive;
+        to.mobCap = from.mobCap;
+        to.sidewalkPattern = from.sidewalkPattern;
+        to.wallPattern = from.wallPattern;
+        to.trusted.addAll(from.trusted);
+        to.denied.addAll(from.denied);
+        to.likes.addAll(from.likes);
+    }
+
+    /** Apply a metadata mutation and roll it back in memory if the durable save fails. */
+    public static boolean update(PlotData data, Consumer<PlotData> mutation) {
+        PlotData before = copyOf(data);
+        mutation.accept(data);
+        if (save()) return true;
+        restoreFrom(before, data);
+        return false;
+    }
+
+    private static PlotData copyOf(PlotData source) {
+        PlotData copy = new PlotData(source.owner, source.ownerName);
+        copySettings(source, copy);
+        copy.paidAmount = source.paidAmount;
+        copy.cells.addAll(source.cells);
+        return copy;
+    }
+
+    private static void restoreFrom(PlotData source, PlotData target) {
+        target.owner = source.owner;
+        target.ownerName = source.ownerName;
+        target.name = source.name;
+        target.home = source.home;
+        target.floorBlockId = source.floorBlockId;
+        target.pvp = source.pvp;
+        target.greeting = source.greeting;
+        target.ambience = source.ambience;
+        target.biomeId = source.biomeId;
+        target.spawnHostile = source.spawnHostile;
+        target.spawnPassive = source.spawnPassive;
+        target.mobCap = source.mobCap;
+        target.sidewalkPattern = source.sidewalkPattern;
+        target.wallPattern = source.wallPattern;
+        target.paidAmount = source.paidAmount;
+        target.trusted.clear(); target.trusted.addAll(source.trusted);
+        target.denied.clear(); target.denied.addAll(source.denied);
+        target.likes.clear(); target.likes.addAll(source.likes);
+        target.cells.clear(); target.cells.addAll(source.cells);
+        target.sidewalkGridCache = null;
+        target.wallGridCache = null;
     }
 
     /** Split a merged plot back into individual single-cell plots (same owner/trust/deny). Returns the cells. */
     public static java.util.List<PlotPos> uncombine(PlotPos any) {
         PlotData d = PLOTS.get(any);
         if (d == null || d.cells.size() <= 1) return new ArrayList<>();
+        Map<PlotPos, PlotData> before = new HashMap<>(PLOTS);
         java.util.List<PlotPos> cells = new ArrayList<>(d.cells);
         long perCellPaid = cells.isEmpty() ? 0 : d.paidAmount / cells.size(); // split the paid amount evenly
-        for (PlotPos c : cells) {
+        long paidRemainder = cells.isEmpty() ? 0 : d.paidAmount % cells.size();
+        for (int i = 0; i < cells.size(); i++) {
+            PlotPos c = cells.get(i);
             PlotData single = new PlotData(d.owner, d.ownerName);
-            single.name = d.name;
-            single.floorBlockId = d.floorBlockId;
-            single.pvp = d.pvp;
-            single.greeting = d.greeting;
-            single.ambience = d.ambience;
-            single.biomeId = d.biomeId;
-            single.spawnHostile = d.spawnHostile;
-            single.spawnPassive = d.spawnPassive;
-            single.mobCap = d.mobCap;
-            single.sidewalkPattern = d.sidewalkPattern;
-            single.wallPattern = d.wallPattern;
-            single.paidAmount = perCellPaid;
-            single.trusted.addAll(d.trusted);
-            single.denied.addAll(d.denied);
-            single.likes.addAll(d.likes);
+            copySettings(d, single);
+            // A custom home belongs to one cell; only keep it on the split cell which contains it.
+            if (single.home != null && !plotAt(single.home.getX(), single.home.getZ()).equals(c)) single.home = null;
+            single.paidAmount = perCellPaid + (i < paidRemainder ? 1 : 0);
             single.cells.add(c);
             PLOTS.put(c, single);
         }
-        save();
+        if (!save()) {
+            PLOTS.clear();
+            PLOTS.putAll(before);
+            return new ArrayList<>();
+        }
         return cells;
     }
 
@@ -143,7 +221,10 @@ public final class PlotManager {
         java.util.Set<PlotData> groups = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
         for (PlotData d : PLOTS.values()) if (owner.equals(d.owner)) groups.add(d);
         for (PlotData d : groups) for (PlotPos c : d.cells) PLOTS.remove(c);
-        if (!groups.isEmpty()) save();
+        if (!groups.isEmpty() && !save()) {
+            for (PlotData d : groups) for (PlotPos c : d.cells) PLOTS.put(c, d);
+            return -1;
+        }
         return groups.size();
     }
 
@@ -197,12 +278,24 @@ public final class PlotManager {
     /** Next unclaimed plot, spiralling outward from the origin (like /plot auto). */
     public static PlotPos nextFree() {
         for (int radius = 0; radius < 1000; radius++) {
+            if (radius == 0) {
+                PlotPos origin = new PlotPos(0, 0);
+                if (!isClaimed(origin)) return origin;
+                continue;
+            }
+            // Visit only the perimeter of this ring. The old square scan revisited O(r²)
+            // interior coordinates for every radius, making a busy world increasingly expensive.
             for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue; // ring only
-                    PlotPos p = new PlotPos(dx, dz);
-                    if (!isClaimed(p)) return p;
-                }
+                PlotPos north = new PlotPos(dx, -radius);
+                if (!isClaimed(north)) return north;
+                PlotPos south = new PlotPos(dx, radius);
+                if (!isClaimed(south)) return south;
+            }
+            for (int dz = -radius + 1; dz < radius; dz++) {
+                PlotPos west = new PlotPos(-radius, dz);
+                if (!isClaimed(west)) return west;
+                PlotPos east = new PlotPos(radius, dz);
+                if (!isClaimed(east)) return east;
             }
         }
         return null;
@@ -213,7 +306,7 @@ public final class PlotManager {
     public static void load(MinecraftServer server) {
         saveFile = server.getWorldPath(LevelResource.ROOT).resolve("fabricplots-plots.txt");
         PLOTS.clear();
-        if (!Files.exists(saveFile)) return;
+        if (!AtomicFiles.exists(saveFile)) return;
         // format: ownerUUID;ownerName;trusted1,trusted2;px1:pz1,px2:pz2;plotName  (one line per group)
         for (String line : safeLines()) {
             if (line.isBlank()) continue;
@@ -255,12 +348,13 @@ public final class PlotManager {
     }
 
     private static List<String> safeLines() {
-        try { return Files.readAllLines(saveFile); }
+        try { return AtomicFiles.readLines(saveFile); }
         catch (IOException e) { System.err.println("[FabricPlots] Failed to read plots: " + e); return new ArrayList<>(); }
     }
 
-    public static void save() {
-        if (saveFile == null) return;
+    /** Persist the complete ownership registry. Returns false when the durable write failed. */
+    public static boolean save() {
+        if (saveFile == null) return false;
         List<String> lines = new ArrayList<>();
         java.util.Set<PlotData> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
         for (PlotData d : PLOTS.values()) {
@@ -281,9 +375,11 @@ public final class PlotManager {
                     + ";" + d.biomeId + ";" + d.spawnHostile + ";" + d.spawnPassive + ";" + d.mobCap);
         }
         try {
-            Files.write(saveFile, lines);
+            AtomicFiles.writeLines(saveFile, lines);
+            return true;
         } catch (IOException e) {
             System.err.println("[FabricPlots] Failed to save plots: " + e);
+            return false;
         }
     }
 }

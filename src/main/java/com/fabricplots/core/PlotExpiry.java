@@ -3,13 +3,13 @@ package com.fabricplots.core;
 import com.fabricplots.FabricPlots;
 import com.fabricplots.protect.PortalManager;
 import com.fabricplots.world.PlotBiomes;
+import com.fabricplots.world.PlotWorldPainter;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.LevelResource;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -40,9 +40,9 @@ public final class PlotExpiry {
         file = server.getWorldPath(LevelResource.ROOT).resolve("fabricplots-lastseen.txt");
         LAST_SEEN.clear();
         dirty = false;
-        if (!Files.exists(file)) return;
+        if (!AtomicFiles.exists(file)) return;
         try {
-            for (String line : Files.readAllLines(file)) {
+            for (String line : AtomicFiles.readLines(file)) {
                 if (line.isBlank()) continue;
                 String[] parts = line.split(" ");
                 try { LAST_SEEN.put(UUID.fromString(parts[0].trim()), Long.parseLong(parts[1].trim())); }
@@ -57,7 +57,7 @@ public final class PlotExpiry {
         if (file == null || !dirty) return;
         List<String> lines = new ArrayList<>(LAST_SEEN.size());
         for (Map.Entry<UUID, Long> e : LAST_SEEN.entrySet()) lines.add(e.getKey() + " " + e.getValue());
-        try { Files.write(file, lines); dirty = false; }
+        try { AtomicFiles.writeLines(file, lines); dirty = false; }
         catch (Exception e) { System.err.println("[FabricPlots] Failed to save last-seen: " + e); }
     }
 
@@ -71,6 +71,7 @@ public final class PlotExpiry {
         List<PlotData> expire = new ArrayList<>();
         for (PlotData d : PlotManager.allPlots()) {
             if (PlotManager.isServer(d.owner) || online.contains(d.owner)) continue; // server/online owners never expire
+            if (PlotWorldPainter.isBusy(d)) continue; // never release a half-cleared/repainted plot
             Long seen = LAST_SEEN.get(d.owner);
             if (seen != null && now - seen > maxAge) expire.add(d);
         }
@@ -79,8 +80,11 @@ public final class PlotExpiry {
         ServerLevel plots = server.getLevel(FabricPlots.PLOTS_DIM);
         for (PlotData d : expire) {
             List<PlotPos> cells = new ArrayList<>(d.cells);
-            if (plots != null && !d.biomeId.isBlank()) PlotBiomes.resetBiome(plots, d); // before unclaim
-            PlotManager.unclaim(cells.get(0)); // removes the whole group
+            if (!PlotManager.unclaim(cells.get(0))) {
+                System.err.println("[FabricPlots] Could not persist expiry for " + d.owner + "; plot kept claimed.");
+                continue;
+            }
+            if (plots != null && !d.biomeId.isBlank()) PlotBiomes.resetBiome(plots, d);
             if (plots != null) for (PlotPos c : cells) PortalManager.removeExitPortalIfOrphan(plots, c);
             System.out.println("[FabricPlots] Released " + (d.ownerName.isBlank() ? d.owner : d.ownerName)
                     + "'s plot (" + cells.size() + " cell(s)) — inactive over " + PlotsConfig.inactivityDays + " days.");

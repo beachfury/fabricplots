@@ -30,10 +30,11 @@ import java.util.UUID;
  *
  * Two layers: {@link Mob#setHomeTo} bounds the wander AI to the spawn point, and a periodic sweep
  * teleports back anything that slipped out anyway (fliers, knockback, pathfinding quirks).
- * Named mobs (pets, display mobs) are exempt, matching the unnamed-mob cleanup rule.
+ * Tamed pets are exempt. A custom name alone is not an exemption: otherwise named hostile mobs
+ * could bypass confinement and players could evade the per-plot cap with name tags.
  */
 public final class PlotMobGuard {
-    /** Where each unnamed plot-world mob belongs (not persisted — re-learned from position on load). */
+    /** Where each tracked plot-world mob belongs (not persisted — re-learned from position on load). */
     private static final Map<UUID, BlockPos> HOME = new HashMap<>();
     private static final int HOME_RADIUS = 14;
 
@@ -50,7 +51,7 @@ public final class PlotMobGuard {
     public static void register() {
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
             if (world.dimension() != FabricPlots.PLOTS_DIM) return;
-            if (!(entity instanceof Mob mob) || mob.hasCustomName()) return;
+            if (!(entity instanceof Mob mob) || isExempt(mob)) return;
             BlockPos pos = mob.blockPosition();
             PlotData d = PlotManager.owningPlot(pos.getX(), pos.getZ());
             if (d == null) {
@@ -79,7 +80,7 @@ public final class PlotMobGuard {
         });
     }
 
-    /** Adopt an unnamed mob onto a plot: remember its home, tether its AI, count it toward the cap. */
+    /** Adopt a non-pet mob onto a plot: remember its home, tether its AI, count it toward the cap. */
     private static void track(PlotData d, Mob mob, BlockPos pos) {
         HOME.put(mob.getUUID(), pos.immutable());
         Compat.setHome(mob, pos, HOME_RADIUS);
@@ -98,7 +99,8 @@ public final class PlotMobGuard {
     public static int effectiveCap(MinecraftServer server, PlotData d) {
         int ceiling = capCeiling(server, d);
         int perCell = Math.min(d.mobCap < 0 ? PlotsConfig.mobCapPerPlot : d.mobCap, ceiling);
-        return perCell * Math.max(1, d.cells.size());
+        long total = (long) perCell * Math.max(1, d.cells.size());
+        return total > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) total;
     }
 
     /**
@@ -112,13 +114,13 @@ public final class PlotMobGuard {
         return owner == null ? PlotsConfig.mobCapPerPlot : Perms.mobCap(owner, PlotsConfig.mobCapPerPlot);
     }
 
-    /** Does this plot's owner allow this (unnamed) mob's category? */
+    /** Does this plot's owner allow this non-pet mob's category? */
     private static boolean allowed(PlotData d, Mob mob) {
         boolean hostile = mob.getType().getCategory() == net.minecraft.world.entity.MobCategory.MONSTER;
         return hostile ? d.spawnHostile : d.spawnPassive;
     }
 
-    /** Remove a plot's unnamed mobs and item drops (used when its biome changes). Returns count. */
+    /** Remove a plot's non-pet mobs and item drops (used when its biome changes). Returns count. */
     public static int purgeMobsAndDrops(ServerLevel plots, PlotData d) {
         return purge(plots, d, false, null);
     }
@@ -128,7 +130,7 @@ public final class PlotMobGuard {
         return purge(plots, d, true, null);
     }
 
-    /** Remove a plot's unnamed mobs of one category (used when a spawn toggle is switched off). */
+    /** Remove a plot's non-pet mobs of one category (used when a spawn toggle is switched off). */
     public static int purgeCategory(ServerLevel plots, PlotData d, boolean hostile) {
         return purge(plots, d, false, hostile);
     }
@@ -141,7 +143,7 @@ public final class PlotMobGuard {
             boolean onPlot = PlotManager.owningPlot(e.getBlockX(), e.getBlockZ()) == d;
             if (everything) { if (onPlot) doomed.add(e); continue; }
             if (e instanceof net.minecraft.world.entity.item.ItemEntity && hostileOnly == null) { if (onPlot) doomed.add(e); continue; }
-            if (!(e instanceof Mob mob) || mob.hasCustomName()) continue;
+            if (!(e instanceof Mob mob) || isExempt(mob)) continue;
             // A mob belongs to the purge if it stands on the plot OR its home is there
             // (escapees loitering on the road while the sweep hasn't caught them yet).
             if (!onPlot) {
@@ -164,7 +166,7 @@ public final class PlotMobGuard {
         Set<UUID> seen = new HashSet<>();
         Map<PlotData, Integer> counts = new IdentityHashMap<>(); // authoritative rebuild for the mob cap
         for (Entity e : plots.getAllEntities()) {
-            if (!(e instanceof Mob mob) || mob.hasCustomName()) continue;
+            if (!(e instanceof Mob mob) || isExempt(mob)) continue;
             seen.add(mob.getUUID());
             BlockPos home = HOME.get(mob.getUUID());
             PlotData here = PlotManager.owningPlot(mob.getBlockX(), mob.getBlockZ());
@@ -186,7 +188,7 @@ public final class PlotMobGuard {
             if (here != homePlot) {
                 // mob-escape-action config: teleport escapees home (default) or despawn them at
                 // the boundary. Never send one home to a plot whose spawn toggle no longer
-                // allows its category. Named mobs never reach here — they're exempt from the sweep.
+                // allows its category. Only genuinely tamed pets are exempt from the sweep.
                 if (PlotsConfig.mobEscapeDespawn || !allowed(homePlot, mob)) {
                     mob.discard();
                     continue; // gone — don't count it toward its plot's cap
@@ -199,5 +201,12 @@ public final class PlotMobGuard {
         HOME.keySet().retainAll(seen);
         COUNT.clear();
         COUNT.putAll(counts);
+    }
+
+    /** Only genuinely tamed pets bypass plot spawn controls; a name tag by itself never does. */
+    public static boolean isExempt(Mob mob) {
+        if (mob instanceof net.minecraft.world.entity.TamableAnimal pet) return pet.isTame();
+        if (mob instanceof net.minecraft.world.entity.animal.horse.AbstractHorse horse) return horse.isTamed();
+        return false;
     }
 }

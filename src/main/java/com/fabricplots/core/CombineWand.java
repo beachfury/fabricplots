@@ -37,6 +37,8 @@ import java.util.UUID;
  * Union the strokes to draw any letter/shape. Markers are restored on cancel or after combining.
  */
 public final class CombineWand {
+    /** Absolute safety ceiling even for operators; prevents a single click allocating an enormous line. */
+    private static final int HARD_SELECTION_LIMIT = 32;
     private static final String WAND_NAME = "combine_plots";
     private static final net.minecraft.world.item.Item WAND_ITEM = Items.GOLDEN_AXE;
     private static final BlockState GOLD = Blocks.GOLD_BLOCK.defaultBlockState();
@@ -101,17 +103,34 @@ public final class CombineWand {
             return;
         }
 
+        final int limit = PlotProtection.isAdmin(p)
+                ? HARD_SELECTION_LIMIT
+                : Math.max(2, Math.min(HARD_SELECTION_LIMIT, PlotsConfig.maxMergeCells));
         List<PlotPos> toAdd;
         BlockPos last = LAST.get(id);
         if (last != null) {
             PlotPos lastCell = PlotManager.plotAt(last.getX(), last.getZ());
             if (!lastCell.equals(cell) && (lastCell.px() == cell.px() || lastCell.pz() == cell.pz())) {
+                long distance = lastCell.px() == cell.px()
+                        ? Math.abs((long) lastCell.pz() - cell.pz()) + 1L
+                        : Math.abs((long) lastCell.px() - cell.px()) + 1L;
+                if (distance > limit) {
+                    msg(p, "That line is too long. A selection may contain at most " + limit + " plots.");
+                    return;
+                }
                 toAdd = cellsBetween(lastCell, cell);   // aligned → fill the straight run
             } else {
                 toAdd = List.of(cell);                  // same cell, or a diagonal (new arm)
             }
         } else {
             toAdd = List.of(cell);
+        }
+
+        int newCells = 0;
+        for (PlotPos c : toAdd) if (!cells.contains(c)) newCells++;
+        if (cells.size() + newCells > limit) {
+            msg(p, "That would exceed the " + limit + "-plot selection limit.");
+            return;
         }
 
         int added = 0;
