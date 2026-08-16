@@ -1,7 +1,49 @@
 # Changelog
 
-All notable changes to FabricPlots. Versions during early development were iterated as dated dev builds
-(`/plot version` reports the current build stamp).
+All notable changes to FabricPlots. `/plot version` reports the version embedded in the running jar.
+
+## [1.0.1] — 2026-08-16
+
+The safety and reliability update for Minecraft 26.1.2.
+
+### Added
+- **Crash-resistant saves.** Plot ownership, configuration, expiry, portal, return-point and decorated-chunk
+  files are now written through a temporary file and atomic replacement. A last-known-good `.bak` file is
+  retained and used when the primary file is missing or unreadable.
+- **Regression tests.** Automated coverage now checks atomic-save recovery, negative plot coordinates,
+  road detection, automatic plot selection and mutation rollback.
+- **DraftSmith integration safeguards.** FabricPlots now rechecks plot access at commit, undo and redo time,
+  rejects block-entity edits, and bounds large selection and shape operations before they allocate or write.
+
+### Fixed
+- **Complete entity protection.** Direct attacks, projectiles, potions and other player-caused damage can no
+  longer bypass plot ownership or per-plot PvP rules. Interactions with frames, stands, villagers and vehicles
+  are protected as well.
+- **Stale menu and command authorization.** Mutating GUI actions and location-sensitive commands re-fetch the
+  current plot, dimension, ownership and permission state immediately before changing anything. Roads are no
+  longer treated as the nearby plot for these commands.
+- **Transactional plot and economy changes.** Failed saves roll ownership and settings back. Paid claims are
+  refunded if persistence fails, deletions retain the plot if release cannot be saved, and economy-enabled
+  claims fail closed when the configured provider or currency is unavailable.
+- **Merge integrity.** Combining rejects disconnected selections, partial existing merge groups, already
+  combined groups and oversized selections. Splitting preserves settings and the full recorded purchase value.
+- **Dimension-safe portals.** Portal frames are keyed by dimension and position, use a server-wide tick clock,
+  consume saved return points after use, and revalidate claim and deny status before teleporting.
+- **Mob-cap bypasses.** A name tag no longer exempts hostile or untamed mobs from plot confinement and caps;
+  genuinely tamed pets remain exempt.
+- **Destructive-action safety.** Clear, delete, combine and uncombine now require a short confirmation, and busy
+  plots reject competing manual, GUI and DraftSmith edits until their background operation finishes.
+
+### Changed
+- **Large world edits are tick-budgeted.** Clear, floor, merge and repaint work is queued in bounded column jobs
+  instead of running as one server-thread spike. Portal cleanup repaints are coalesced.
+- **Automatic plot search is faster.** `/plot auto` now scans outward by rings rather than repeatedly rescanning
+  every inner square.
+- **Runtime loading metadata.** FabricPlots remains server-side in behavior but initializes on both dedicated
+  servers and integrated single-player servers. This branch targets Minecraft `~26.1.2`, Java 25 and Java 25
+  mixin compatibility. DraftSmith's Maven Local lookup is restricted to its own group.
+- **Bundled dependencies.** DraftSmith is upgraded to 1.0.1 and SGUI is pinned to the latest compatible
+  upstream tag, `2.0.0+26.1`.
 
 ## [1.0.0] — 2026-08-05
 

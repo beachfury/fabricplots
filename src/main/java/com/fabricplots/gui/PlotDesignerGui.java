@@ -1,6 +1,7 @@
 package com.fabricplots.gui;
 
 import com.fabricplots.compat.Compat;
+import com.fabricplots.compat.Perms;
 
 import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotConfig;
@@ -9,6 +10,7 @@ import com.fabricplots.core.PlotManager;
 import com.fabricplots.core.PlotPos;
 import com.fabricplots.protect.PlotProtection;
 import com.fabricplots.world.PlotStyle;
+import com.fabricplots.world.PlotWorldPainter;
 
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
@@ -68,8 +70,8 @@ public final class PlotDesignerGui {
     }
 
     private static void open(ServerPlayer sp, PlotPos anchor, Runnable back, boolean wall) {
-        PlotData d = PlotManager.get(anchor);
-        if (d == null || (!d.owner.equals(sp.getUUID()) && !PlotProtection.isAdmin(sp))) { sp.closeContainer(); return; }
+        PlotData d = editable(sp, anchor);
+        if (d == null) return;
 
         int rows = wall ? PlotStyle.WALL_ROWS : PlotStyle.SIDEWALK_ROWS;
         String[][] existing = PlotStyle.parse(wall ? d.wallPattern : d.sidewalkPattern, rows);
@@ -114,13 +116,19 @@ public final class PlotDesignerGui {
         g.setSlot(8, new GuiElementBuilder(Items.TNT).setName(Component.literal("Reset to default"))
                 .setLore(List.of(Component.literal(wall ? "Removes the wall." : "Back to the standard sidewalk.")))
                 .setCallback((i, t, a, gg) -> {
-                    if (wall) d.wallPattern = ""; else d.sidewalkPattern = "";
-                    PlotStyle.invalidateCache(d);
-                    PlotManager.save();
+                    PlotData current = editable(sp, anchor);
+                    if (current == null) return;
+                    if (!PlotManager.update(current, plot -> {
+                        if (wall) plot.wallPattern = ""; else plot.sidewalkPattern = "";
+                        PlotStyle.invalidateCache(plot);
+                    })) {
+                        sp.sendSystemMessage(Component.literal("[Plots] The reset could not be saved; nothing was changed."));
+                        return;
+                    }
                     ServerLevel plots = sp.level().getServer().getLevel(FabricPlots.PLOTS_DIM);
                     if (plots != null) {
-                        if (wall) PlotStyle.applyWall(plots, d);       // blank pattern clears the wall
-                        else PlotStyle.applySidewalk(plots, d);        // blank pattern repaints defaults
+                        if (wall) PlotStyle.applyWall(plots, current);       // blank pattern clears the wall
+                        else PlotStyle.applySidewalk(plots, current);        // blank pattern repaints defaults
                     }
                     sp.sendSystemMessage(Component.literal("[Plots] " + (wall ? "Wall removed." : "Sidewalk reset to default.")));
                     open(sp, anchor, back, wall);
@@ -183,22 +191,37 @@ public final class PlotDesignerGui {
     // ---- apply ------------------------------------------------------------
 
     private static void applyAndSave(ServerPlayer sp, PlotPos anchor, String[][] grid, boolean wall) {
-        PlotData d = PlotManager.get(anchor);
+        PlotData d = editable(sp, anchor);
         if (d == null) return;
         String serialized = PlotStyle.isEmpty(grid) ? "" : PlotStyle.serialize(grid);
         String before = wall ? d.wallPattern : d.sidewalkPattern;
         // The default prefill (plain tuff sidewalk) isn't a customization — keep it as "no pattern".
         if (!wall && serialized.equals(PlotStyle.serialize(defaultGrid(false)))) serialized = "";
         if (serialized.equals(before)) return; // nothing changed
-        if (wall) d.wallPattern = serialized; else d.sidewalkPattern = serialized;
-        PlotStyle.invalidateCache(d);
-        PlotManager.save();
+        final String next = serialized;
+        if (!PlotManager.update(d, plot -> {
+            if (wall) plot.wallPattern = next; else plot.sidewalkPattern = next;
+            PlotStyle.invalidateCache(plot);
+        })) {
+            sp.sendSystemMessage(Component.literal("[Plots] The design could not be saved; nothing was changed."));
+            return;
+        }
         ServerLevel plots = sp.level().getServer().getLevel(FabricPlots.PLOTS_DIM);
         if (plots != null) {
             int n = wall ? PlotStyle.applyWall(plots, d) : PlotStyle.applySidewalk(plots, d);
             sp.sendSystemMessage(Component.literal("[Plots] " + (wall ? "Wall" : "Sidewalk") + " design applied ("
                     + n + " columns)."));
         }
+    }
+
+    /** Menus can remain open across an ownership or permission change, so every write re-checks. */
+    private static PlotData editable(ServerPlayer sp, PlotPos anchor) {
+        PlotData d = PlotManager.get(anchor);
+        if (Perms.check(sp, "fabricplots.designer", true) && !PlotWorldPainter.isBusy(d)
+                && d != null && (d.owner.equals(sp.getUUID()) || PlotProtection.isAdmin(sp))) return d;
+        sp.sendSystemMessage(Component.literal("[Plots] You no longer have permission to edit that design."));
+        sp.closeContainer();
+        return null;
     }
 
     /** The starting grid when a plot has no saved pattern yet. */

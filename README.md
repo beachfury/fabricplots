@@ -4,6 +4,12 @@ A **server-side**, PlotSquared-style plot world for **Fabric / Minecraft 26.1.2,
 crossplay** (Geyser/Floodgate). Nothing is required on the client — Bedrock players use every command and menu
 through Geyser. Drop the jar on the server and you have a full creative plot server.
 
+The current `main` branch builds **FabricPlots 1.0.1 for Minecraft 26.1.2**. This patch focuses on
+crash-resistant saves, stricter protection checks and tick-safe maintenance; see [CHANGELOG.md](CHANGELOG.md).
+
+FabricPlots is server-side in behavior and does not need to be installed by connecting clients. It initializes
+on both dedicated servers and integrated single-player servers so local worlds can be used for testing.
+
 ## Features
 
 - **Plot world** — a bundled flat creative dimension (`fabricplots:plots`) with a gridded street network
@@ -16,7 +22,7 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
 - **Trust & deny** — `/plot trust` / `/plot deny` (deny bounces a player off your plot).
 - **Custom plot floor** — pick your plot's ground block from a paginated GUI palette of **every full-cube block**
   (all the natural blocks, stones, woods, 16 concretes, ores — and version-specific blocks like 26.2's sulfur and
-  cinnabar). It recolors the surface instantly and survives `/plot clear`.
+  cinnabar). It recolors the surface with a tick-safe background job and survives `/plot clear`.
 - **Per-plot PvP toggle** — the plot world is safe by default; an owner can allow PvP on their own plot from the
   settings menu (roads and other plots stay safe).
 - **Sidewalk & wall designers** — chest-GUI pattern editors: place any blocks into a repeating 9-wide template
@@ -35,7 +41,8 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   keeps zoo builds in check (owner-adjustable up to the `mob-cap-per-plot` server ceiling, scaling
   with merged cells, raisable per player via `fabricplots.mobcap.N` permission tiers), and a
   `mob-spawning=off` config switch kills all plot spawning server-wide. Changing biome (or
-  `/plot clear`) cleans up the previous mobs and their drops. Named mobs (pets) are always exempt.
+  `/plot clear`) cleans up the previous mobs and their drops. Genuinely tamed pets are exempt;
+  a name tag alone does not bypass confinement or the mob cap.
 - **Placeholders** — with [Placeholder API](https://placeholders.pb4.eu/) installed, `%fabricplots:owned%`,
   `%fabricplots:total%`, `%fabricplots:my_likes%`, `%fabricplots:plot_name%`, `%fabricplots:plot_owner%`,
   `%fabricplots:plot_likes%`, `%fabricplots:plot_biome%` work in tab lists, chat formats and holograms
@@ -54,8 +61,8 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   `hsphere`, `cyl`, `disc`, `ring`, `line`, `copy`, `cut`, `paste`, `stack`, `move`, `undo`, `redo` — every
   block written is ownership-checked, so it physically cannot edit a road or someone else's plot. No griefing
   risk, no WorldEdit region setup. (Since 1.0.0 the editor is our standalone
-  [DraftSmith](https://github.com/beachfury/draftsmith) mod, bundled inside the jar — nothing extra to
-  install, same tools, same `/plot` commands.)
+  [DraftSmith](https://github.com/beachfury/draftsmith) mod; FabricPlots 1.0.1 bundles DraftSmith 1.0.1
+  inside the jar — nothing extra to install, same tools, same `/plot` commands.)
 - **Editor hub with Shapes & Measure screens** — `/draft edit` (or just `/draft`) opens a quick-bar hub (corners, clipboard,
   fill/walls, stack/move, undo/redo) with doors into two dedicated screens (`/plot measure` jumps
   straight to the measuring tools). **Shapes**: circle, square,
@@ -83,11 +90,15 @@ through Geyser. Drop the jar on the server and you have a full creative plot ser
   fire / mob-griefing / projectile protection, inactivity expiry, spawn point, and more.
 - **Admin safety** — ops are not auto-exempt; an op runs `/plot admin` to *opt in* to editing outside their own
   plots, so the powerful tools can't wreck the map by accident.
+- **Operational safety** — plot data is saved atomically with a last-known-good backup, state changes roll back
+  when persistence fails, and large clears/repaints run as bounded background jobs instead of a single tick spike.
 - **Optional economy** — off by default. Turn it on in the config to charge for claiming plots (with optional
   first-plot-free, admin exemption, and refunds on delete). Integrates with the
   [Common Economy API](https://github.com/Patbox/common-economy-api), so it works with any compliant economy mod
   (e.g. [Savs Common Economy](https://modrinth.com/mod/savs-common-economy)) — and it's a soft dependency, so
-  FabricPlots runs fine without one.
+  FabricPlots runs fine without one. If economy is enabled but its provider/account is unavailable, claiming
+  fails closed instead of silently giving away a paid plot; configure `economy-currency-id` when players have
+  more than one currency account.
 
 ## Using the build editor (DraftSmith)
 
@@ -230,24 +241,26 @@ and needs the owner **online** — plots of offline owners use the plain config 
 ## Building from source
 
 Requires **JDK 25**. Minecraft 26.x ships unobfuscated (official Mojang names, no `mappings` line; uses the `jar`
-task, not `remapJar`).
+task, not `remapJar`). DraftSmith 1.0.1 is consumed from Maven Local, so publish its matching `main` branch
+first (keep the two repositories as siblings):
 
 ```bash
+(cd ../draftsmith && git switch main && ./gradlew publishToMavenLocal)
 ./gradlew build      # or: gradle build
 ```
 
-Output: `build/libs/fabricplots-<version>.jar`.
+Output for this branch: `build/libs/fabricplots-1.0.1+26.1.2.jar`.
 
 ## Versions
 
 Each supported Minecraft version is tracked as a branch — **identical features**, differing only in version
 numbers, toolchain (1.21.1 is obfuscated: JDK 21 + mojmap) and a few renamed vanilla blocks:
 
-| Branch | Minecraft | Fabric API | sgui |
-|--------|-----------|------------|------|
-| [`main`](../../tree/main) | 26.1.2 | `0.145.4+26.1.2` | `2.0.0+26.1` |
-| [`26.2`](../../tree/26.2) | 26.2 | `0.153.0+26.2` | `2.1.0+26.2` |
-| [`1.21.1`](../../tree/1.21.1) | 1.21.1 | `0.116.15+1.21.1` | `1.6.1+1.21.1` |
+| Branch | Minecraft | Fabric API | DraftSmith | sgui |
+|--------|-----------|------------|------------|------|
+| [`main`](../../tree/main) | 26.1.2 | `0.145.4+26.1.2` | `1.0.1+26.1.2` | `2.0.0+26.1` |
+| [`26.2`](../../tree/26.2) | 26.2 | `0.153.0+26.2` | `1.0.1+26.2` | `2.1.0+26.2` |
+| [`1.21.1`](../../tree/1.21.1) | 1.21.1 | `0.116.15+1.21.1` | `1.0.1+1.21.1` | `1.6.1+1.21.1` |
 
 ## License
 

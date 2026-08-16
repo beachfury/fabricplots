@@ -5,6 +5,7 @@ import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotManager;
 import com.fabricplots.core.PlotPos;
 import com.fabricplots.core.PlotsConfig;
+import com.fabricplots.core.AtomicFiles;
 import com.fabricplots.world.PlotWorldPainter;
 
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
@@ -32,7 +33,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.LevelResource;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -102,15 +102,19 @@ public final class PortalManager {
         p.resetFallDistance();
     }
 
-    // Keyed per cell so the per-tick lookups are O(1).
-    private static final Map<BlockPos, Portal> ACTIVE = new ConcurrentHashMap<>();  // interior cell -> portal
-    private static final Map<BlockPos, Portal> FRAMES = new ConcurrentHashMap<>();  // frame cell -> portal
+    // Keyed by dimension + cell so identical coordinates in different worlds never collide.
+    private static final Map<GlobalPos, Portal> ACTIVE = new ConcurrentHashMap<>(); // interior cell -> portal
+    private static final Map<GlobalPos, Portal> FRAMES = new ConcurrentHashMap<>(); // frame cell -> portal
     private static final Map<UUID, GlobalPos> RETURN_POINT = new HashMap<>();
     private static final Map<UUID, Long> COOLDOWN = new HashMap<>();
     private static Path saveFile;
     private static Path returnsFile;
 
     private PortalManager() {}
+
+    private static GlobalPos key(ResourceKey<Level> dim, BlockPos pos) {
+        return GlobalPos.of(dim, pos.immutable());
+    }
 
     // ---- Plot Portal Key item -------------------------------------------
 
@@ -166,8 +170,8 @@ public final class PortalManager {
         // Breaking any frame (or interior) cell tears the whole portal down.
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, be) -> {
             if (!(world instanceof ServerLevel level)) return;
-            Portal portal = FRAMES.get(pos);
-            if (portal == null) portal = ACTIVE.get(pos);
+            Portal portal = FRAMES.get(key(level.dimension(), pos));
+            if (portal == null) portal = ACTIVE.get(key(level.dimension(), pos));
             if (portal != null && portal.dim == level.dimension()) deactivate(portal);
         });
     }
@@ -176,7 +180,7 @@ public final class PortalManager {
         BlockPos[] seeds = { clicked.relative(face), clicked.above(), clicked };
         for (BlockPos seed : seeds) {
             if (!level.getBlockState(seed).isAir()) continue;
-            if (ACTIVE.containsKey(seed)) continue; // already a live portal here
+            if (ACTIVE.containsKey(key(level.dimension(), seed))) continue; // already a live portal here
             for (Direction.Axis axis : new Direction.Axis[]{ Direction.Axis.X, Direction.Axis.Z }) {
                 FrameScan scan = scan(level, seed, axis);
                 if (scan != null) { activate(scan, type, plot, sp, level.dimension()); return true; }
@@ -187,10 +191,13 @@ public final class PortalManager {
 
     private static void activate(FrameScan scan, DestType type, PlotPos plot, ServerPlayer sp, ResourceKey<Level> dim) {
         // Replace any overlapping portal (re-lighting to change destination).
-        for (BlockPos p : scan.interior()) { Portal old = ACTIVE.get(p); if (old != null) deactivate(old); }
+        for (BlockPos p : scan.interior()) {
+            Portal old = ACTIVE.get(key(dim, p));
+            if (old != null) deactivate(old);
+        }
         Portal portal = new Portal(type, plot, scan.interior(), scan.frame(), dim);
-        for (BlockPos p : scan.interior()) ACTIVE.put(p, portal);
-        for (BlockPos p : scan.frame()) FRAMES.put(p, portal);
+        for (BlockPos p : scan.interior()) ACTIVE.put(key(dim, p), portal);
+        for (BlockPos p : scan.frame()) FRAMES.put(key(dim, p), portal);
         save();
         switch (type) {
             case PLAZA -> msg(sp, "Spawn-plaza portal lit. Walk through to enter the plot world.");
@@ -250,15 +257,15 @@ public final class PortalManager {
     }
 
     private static void deactivate(Portal portal) {
-        for (BlockPos p : portal.interior) ACTIVE.remove(p);
-        for (BlockPos p : portal.frame) FRAMES.remove(p);
+        for (BlockPos p : portal.interior) ACTIVE.remove(key(portal.dim, p), portal);
+        for (BlockPos p : portal.frame) FRAMES.remove(key(portal.dim, p), portal);
         save();
     }
 
     // ---- per-tick: travel + particles -----------------------------------
 
     public static void onPlayerTick(MinecraftServer server, ServerPlayer p) {
-        long now = p.level().getGameTime();
+        long now = server.getTickCount();
         Long cd = COOLDOWN.get(p.getUUID());
         if (cd != null && now < cd) return;
         Portal portal = portalAt(p);
@@ -270,10 +277,9 @@ public final class PortalManager {
     private static Portal portalAt(ServerPlayer p) {
         ResourceKey<Level> dim = p.level().dimension();
         BlockPos feet = p.blockPosition();
-        Portal a = ACTIVE.get(feet);
-        if (a != null && a.dim == dim) return a;
-        Portal b = ACTIVE.get(feet.above());
-        return (b != null && b.dim == dim) ? b : null;
+        Portal a = ACTIVE.get(key(dim, feet));
+        if (a != null) return a;
+        return ACTIVE.get(key(dim, feet.above()));
     }
 
     /** Draw the swirl with portal particles (called a few times a second from the server tick). */
@@ -298,6 +304,14 @@ public final class PortalManager {
         if (portal.type == DestType.RETURN) { returnHome(server, p); return; }
         ServerLevel plots = server.getLevel(FabricPlots.PLOTS_DIM);
         if (plots == null) { msg(p, "Plot world isn't loaded."); return; }
+        if (portal.type == DestType.PLOT) {
+            var destination = PlotManager.get(portal.plot);
+            if (destination == null) { msg(p, "That portal's plot no longer exists. Relight the frame with a current key."); return; }
+            if (destination.denied.contains(p.getUUID()) && !PlotProtection.isAdmin(p)) {
+                msg(p, "That plot's owner has denied you entry.");
+                return;
+            }
+        }
         RETURN_POINT.put(p.getUUID(), GlobalPos.of(portal.dim, portal.anchor));
         saveReturns(); // survive server restarts while players are in the plot world
         if (portal.type == DestType.PLAZA) {
@@ -316,13 +330,14 @@ public final class PortalManager {
 
     /** Send a player back to the portal they came in through (or the home-world spawn). Used by /plot leave. */
     public static void returnHome(MinecraftServer server, ServerPlayer p) {
-        COOLDOWN.put(p.getUUID(), p.level().getGameTime() + 60);
-        GlobalPos ret = RETURN_POINT.get(p.getUUID());
+        COOLDOWN.put(p.getUUID(), (long) server.getTickCount() + 60);
+        GlobalPos ret = RETURN_POINT.remove(p.getUUID());
         ServerLevel dest = ret == null ? server.overworld() : server.getLevel(ret.dimension());
         if (dest == null) dest = server.overworld();
         BlockPos pos = ret == null ? dest.getRespawnData().pos() : ret.pos();
         p.teleportTo(dest, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, Set.of(), p.getYRot(), 0.0f, false);
         settle(p); // no fall damage stepping out of the portal
+        saveReturns();
         msg(p, "Returned to your home world.");
     }
 
@@ -350,7 +365,7 @@ public final class PortalManager {
         // Skip streets that are interior to a merge (dissolved to grass — not a real road).
         if (PlotManager.sameMerge(streetPx, cell.pz(), streetPx + 1, cell.pz())) return;
         BlockPos anchor = exitAnchor(streetPx, cell.pz());
-        if (ACTIVE.containsKey(anchor)) return; // already built (shared by the two flanking plots)
+        if (ACTIVE.containsKey(key(plots.dimension(), anchor))) return; // already built (shared by the two flanking plots)
 
         final int cx = anchor.getX(), cz = anchor.getZ(), y0 = anchor.getY();
         Set<BlockPos> interior = new HashSet<>();
@@ -368,8 +383,8 @@ public final class PortalManager {
         Portal portal = new Portal(DestType.RETURN, null, interior, frame, plots.dimension());
         for (BlockPos b : frame) plots.setBlock(b, CALCITE, Block.UPDATE_CLIENTS);
         for (BlockPos b : interior) plots.setBlock(b, AIR, Block.UPDATE_CLIENTS);
-        for (BlockPos b : interior) ACTIVE.put(b, portal);
-        for (BlockPos b : frame) FRAMES.put(b, portal);
+        for (BlockPos b : interior) ACTIVE.put(key(portal.dim, b), portal);
+        for (BlockPos b : frame) FRAMES.put(key(portal.dim, b), portal);
         save();
     }
 
@@ -380,7 +395,7 @@ public final class PortalManager {
         if (streetPx == Integer.MIN_VALUE) return;
         if (PlotManager.isClaimed(new PlotPos(streetPx, cell.pz()))
                 || PlotManager.isClaimed(new PlotPos(streetPx + 1, cell.pz()))) return; // a neighbour keeps it alive
-        Portal portal = ACTIVE.get(exitAnchor(streetPx, cell.pz()));
+        Portal portal = ACTIVE.get(key(plots.dimension(), exitAnchor(streetPx, cell.pz())));
         if (portal == null) return;
         destroyPortal(plots, portal);
         save();
@@ -393,7 +408,7 @@ public final class PortalManager {
         for (PlotPos c : cells) {
             for (int streetPx : new int[]{ c.px(), c.px() - 1 }) { // the N-S roads touching this cell
                 if (!PlotManager.sameMerge(streetPx, c.pz(), streetPx + 1, c.pz())) continue; // still a real road
-                Portal p = ACTIVE.get(exitAnchor(streetPx, c.pz()));
+                Portal p = ACTIVE.get(key(plots.dimension(), exitAnchor(streetPx, c.pz())));
                 if (p != null && p.type == DestType.RETURN) toRemove.add(p);
             }
         }
@@ -403,11 +418,11 @@ public final class PortalManager {
 
     /** Unregister a portal, clear its blocks, and repaint the road/ground underneath. */
     private static void destroyPortal(ServerLevel plots, Portal portal) {
-        for (BlockPos b : portal.frame) FRAMES.remove(b);
-        for (BlockPos b : portal.interior) ACTIVE.remove(b);
+        for (BlockPos b : portal.frame) FRAMES.remove(key(portal.dim, b), portal);
+        for (BlockPos b : portal.interior) ACTIVE.remove(key(portal.dim, b), portal);
         for (BlockPos b : portal.frame) plots.setBlock(b, AIR, Block.UPDATE_CLIENTS);
         for (BlockPos b : portal.interior) plots.setBlock(b, AIR, Block.UPDATE_CLIENTS);
-        PlotWorldPainter.repaint(plots, portal.anchor.getX(), portal.anchor.getZ(), 3);
+        PlotWorldPainter.requestRepaint(portal.anchor.getX(), portal.anchor.getZ(), 3);
     }
 
     /** Tear down every exit portal and rebuild them for all claimed plots at the current spacing. */
@@ -425,10 +440,8 @@ public final class PortalManager {
 
     /** True if a block belongs to a live portal in the plot world — the painter must leave these alone. */
     public static boolean isProtected(BlockPos pos) {
-        Portal a = ACTIVE.get(pos);
-        if (a != null && a.dim == FabricPlots.PLOTS_DIM) return true;
-        Portal f = FRAMES.get(pos);
-        return f != null && f.dim == FabricPlots.PLOTS_DIM;
+        if (ACTIVE.containsKey(key(FabricPlots.PLOTS_DIM, pos))) return true;
+        return FRAMES.containsKey(key(FabricPlots.PLOTS_DIM, pos));
     }
 
     // ---- persistence -----------------------------------------------------
@@ -439,9 +452,9 @@ public final class PortalManager {
         ACTIVE.clear();
         FRAMES.clear();
         loadReturns();
-        if (!Files.exists(saveFile)) return;
+        if (!AtomicFiles.exists(saveFile)) return;
         try {
-            for (String line : Files.readAllLines(saveFile)) {
+            for (String line : AtomicFiles.readLines(saveFile)) {
                 if (line.isBlank()) continue;
                 try {
                     String[] parts = line.split(";", -1);
@@ -452,8 +465,8 @@ public final class PortalManager {
                     Set<BlockPos> frame = parts.length > 5 ? parsePositions(parts[5]) : new HashSet<>();
                     if (interior.isEmpty()) continue;
                     Portal portal = new Portal(type, plot, interior, frame, dim);
-                    for (BlockPos p : interior) ACTIVE.put(p, portal);
-                    for (BlockPos p : frame) FRAMES.put(p, portal);
+                    for (BlockPos p : interior) ACTIVE.put(key(dim, p), portal);
+                    for (BlockPos p : frame) FRAMES.put(key(dim, p), portal);
                 } catch (Exception e) {
                     System.err.println("[FabricPlots] Skipped bad portal line: " + line + " (" + e + ")");
                 }
@@ -485,7 +498,7 @@ public final class PortalManager {
                     + join(portal.interior) + ";" + join(portal.frame));
         }
         try {
-            Files.write(saveFile, lines);
+            AtomicFiles.writeLines(saveFile, lines);
         } catch (Exception e) {
             System.err.println("[FabricPlots] Failed to save portals: " + e);
         }
@@ -494,9 +507,9 @@ public final class PortalManager {
     /** Read the per-player return points (uuid;dimension;x;y;z per line). */
     private static void loadReturns() {
         RETURN_POINT.clear();
-        if (returnsFile == null || !Files.exists(returnsFile)) return;
+        if (returnsFile == null || !AtomicFiles.exists(returnsFile)) return;
         try {
-            for (String line : Files.readAllLines(returnsFile)) {
+            for (String line : AtomicFiles.readLines(returnsFile)) {
                 if (line.isBlank()) continue;
                 try {
                     String[] parts = line.split(";", -1);
@@ -522,7 +535,7 @@ public final class PortalManager {
                     + gp.pos().getX() + ";" + gp.pos().getY() + ";" + gp.pos().getZ());
         }
         try {
-            Files.write(returnsFile, lines);
+            AtomicFiles.writeLines(returnsFile, lines);
         } catch (Exception e) {
             System.err.println("[FabricPlots] Failed to save return points: " + e);
         }
