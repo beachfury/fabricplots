@@ -73,6 +73,7 @@ public final class FabricPlots implements ModInitializer {
             applyWorldRules(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            PlotWorldPainter.finishWorldJobs(server.getLevel(PLOTS_DIM));
             PlotManager.save();
             PlotWorldPainter.saveDecorated();
             PortalManager.save();
@@ -129,6 +130,8 @@ public final class FabricPlots implements ModInitializer {
     private static void onServerTick(MinecraftServer server) {
         // Decorate a few freshly-loaded plots chunks per tick (post-gen furniture placement).
         PlotWorldPainter.processPending(server.getLevel(PLOTS_DIM), 32);
+        // Heavy plot clears/repaints are column-batched so a command cannot freeze the tick thread.
+        PlotWorldPainter.processWorldJobs(server.getLevel(PLOTS_DIM), 64);
 
         // Portal swirl particles (a few times a second is plenty).
         if (++portalParticleTick >= 5) { portalParticleTick = 0; PortalManager.spawnParticles(server); }
@@ -196,7 +199,7 @@ public final class FabricPlots implements ModInitializer {
             if (plots != null) {
                 List<Entity> stale = new ArrayList<>();
                 for (Entity e : plots.getAllEntities()) {
-                    if (e instanceof Mob mob && !mob.hasCustomName()
+                    if (e instanceof Mob mob && !PlotMobGuard.isExempt(mob)
                             && mob.tickCount > PlotsConfig.unnamedMobGraceTicks
                             && PlotManager.owningPlot(mob.getBlockX(), mob.getBlockZ()) == null) {
                         stale.add(mob);

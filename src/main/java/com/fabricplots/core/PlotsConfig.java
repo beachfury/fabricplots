@@ -4,8 +4,10 @@ import com.fabricplots.FabricPlots;
 
 import net.fabricmc.loader.api.FabricLoader;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Properties;
 
 /**
@@ -46,7 +48,7 @@ public final class PlotsConfig {
     public static volatile boolean chargeAdmins = false;      // do ops pay too (false = ops claim free)
     public static volatile boolean refundOnDelete = false;    // refund part of the cost on /plot delete
     public static volatile int refundPercent = 50;            // how much of the paid amount to refund
-    public static volatile String economyCurrencyId = "";     // currency id (blank = the provider's default)
+    public static volatile String economyCurrencyId = "";     // blank is allowed only when exactly one account exists
     public static volatile boolean mobEscapeDespawn = false;  // "mob-escape-action": teleport (default) or despawn
     public static volatile boolean mobSpawningOff = false;    // "mob-spawning": per-plot (default) honors the owners' toggles; off = master kill switch
     public static volatile int mobCapPerPlot = 15;            // server ceiling on tracked mobs per plot cell (merges scale by cell count)
@@ -59,19 +61,19 @@ public final class PlotsConfig {
     public static void load() {
         if (file == null) file = FabricLoader.getInstance().getConfigDir().resolve("fabricplots.properties");
         Properties p = new Properties();
-        if (Files.exists(file)) {
-            try (var in = Files.newInputStream(file)) { p.load(in); }
+        if (AtomicFiles.exists(file)) {
+            try { p.load(new StringReader(String.join("\n", AtomicFiles.readLines(file)))); }
             catch (Exception e) { System.err.println("[FabricPlots] Failed to read config: " + e); }
         }
         allowPlayerCombine   = bool(p, "allow-player-combine", allowPlayerCombine);
-        maxMergeCells        = inted(p, "max-merge-cells", maxMergeCells);
-        claimLimit           = inted(p, "claim-limit", claimLimit);
+        maxMergeCells        = Math.max(2, Math.min(32, inted(p, "max-merge-cells", maxMergeCells)));
+        claimLimit           = Math.max(0, inted(p, "claim-limit", claimLimit));
         welcomeMessage       = bool(p, "welcome-message", welcomeMessage);
-        unnamedMobGraceTicks = inted(p, "unnamed-mob-grace-ticks", unnamedMobGraceTicks);
-        mobScanIntervalTicks = inted(p, "mob-scan-interval-ticks", mobScanIntervalTicks);
+        unnamedMobGraceTicks = Math.max(0, inted(p, "unnamed-mob-grace-ticks", unnamedMobGraceTicks));
+        mobScanIntervalTicks = Math.max(20, inted(p, "mob-scan-interval-ticks", mobScanIntervalTicks));
         mobEscapeDespawn = "despawn".equalsIgnoreCase(p.getProperty("mob-escape-action", mobEscapeDespawn ? "despawn" : "teleport").trim());
         mobSpawningOff = "off".equalsIgnoreCase(p.getProperty("mob-spawning", mobSpawningOff ? "off" : "per-plot").trim());
-        mobCapPerPlot = Math.max(0, inted(p, "mob-cap-per-plot", mobCapPerPlot));
+        mobCapPerPlot = Math.max(0, Math.min(1024, inted(p, "mob-cap-per-plot", mobCapPerPlot)));
         portalStreetSpacing = Math.max(1, inted(p, "portal-street-spacing", portalStreetSpacing));
         advanceTime = bool(p, "advance-time", advanceTime);
         advanceWeather = bool(p, "advance-weather", advanceWeather);
@@ -84,7 +86,7 @@ public final class PlotsConfig {
         plotWorldPortalAdminOnly = bool(p, "plot-world-portal-admin-only", plotWorldPortalAdminOnly);
         manageGamemode = bool(p, "manage-gamemode", manageGamemode);
         spawnX = inted(p, "spawn-x", spawnX);
-        spawnY = inted(p, "spawn-y", spawnY);
+        spawnY = Math.max(-15, Math.min(PlotConfig.WORLD_TOP_Y, inted(p, "spawn-y", spawnY)));
         spawnZ = inted(p, "spawn-z", spawnZ);
         streetSweeper = bool(p, "street-sweeper", streetSweeper);
         sweeperSpawnRadius = Math.max(0, inted(p, "street-sweeper-spawn-radius", sweeperSpawnRadius));
@@ -134,10 +136,9 @@ public final class PlotsConfig {
         p.setProperty("economy-refund-percent", Integer.toString(refundPercent));
         p.setProperty("economy-currency-id", economyCurrencyId);
         try {
-            Files.createDirectories(file.getParent());
-            try (var out = Files.newOutputStream(file)) {
-                p.store(out, "FabricPlots settings — edit then run /plot reload. Geometry (plot/road size, Y) needs a world regen and lives in code.");
-            }
+            StringWriter out = new StringWriter();
+            p.store(out, "FabricPlots settings — edit then run /plot reload. Geometry (plot/road size, Y) needs a world regen and lives in code.");
+            AtomicFiles.writeLines(file, Arrays.asList(out.toString().split("\\R", -1)));
         } catch (Exception e) { System.err.println("[FabricPlots] Failed to write config: " + e); }
     }
 

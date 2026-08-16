@@ -4,11 +4,14 @@ import com.fabricplots.FabricPlots;
 import com.fabricplots.core.PlotConfig;
 import com.fabricplots.core.PlotData;
 import com.fabricplots.core.PlotManager;
+import com.fabricplots.world.PlotWorldPainter;
 
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -94,10 +97,26 @@ public final class PlotProtection {
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (!(world instanceof ServerLevel)) return InteractionResult.PASS;
             if (!isPlots(world)) return InteractionResult.PASS;
-            if (!(player instanceof ServerPlayer) || !(entity instanceof ServerPlayer victim)) return InteractionResult.PASS;
-            if (player == victim) return InteractionResult.PASS;
-            PlotData plot = PlotManager.owningPlot(victim.getBlockX(), victim.getBlockZ());
-            return (plot != null && plot.pvp) ? InteractionResult.PASS : InteractionResult.FAIL;
+            if (entity instanceof ServerPlayer victim) return pvpAllowed(victim) ? InteractionResult.PASS : InteractionResult.FAIL;
+            return allowed(player, entity.blockPosition()) ? InteractionResult.PASS : InteractionResult.FAIL;
+        });
+
+        // Entity interaction is a separate path from attacking: item frames, armor stands,
+        // villagers, boats and minecarts must obey the same ownership boundary as blocks.
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (!(world instanceof ServerLevel)) return InteractionResult.PASS;
+            if (!isPlots(world) || entity instanceof ServerPlayer) return InteractionResult.PASS;
+            return allowed(player, entity.blockPosition()) ? InteractionResult.PASS : InteractionResult.FAIL;
+        });
+
+        // AttackEntityCallback only sees direct attacks. Enforce the PvP flag at the damage layer
+        // too, so player-fired arrows, tridents, potions and explosions cannot bypass safe plots.
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (!(entity instanceof ServerPlayer victim)) return true;
+            if (!isPlots(victim.level())) return true;
+            net.minecraft.world.entity.Entity attacker = source.getEntity();
+            if (!(attacker instanceof ServerPlayer) || attacker == victim) return true;
+            return pvpAllowed(victim);
         });
     }
 
@@ -106,12 +125,23 @@ public final class PlotProtection {
     }
 
     private static boolean allowed(Player player, BlockPos pos) {
+        PlotData data = PlotManager.owningPlot(pos.getX(), pos.getZ());
+        if (PlotWorldPainter.isBusy(data)) return false;                              // queued clear/repaint owns it for now
         // Only ops who have ENABLED build-admin mode bypass everything (bedrock / roads / other plots).
         if (player instanceof ServerPlayer sp && isBuildAdmin(sp)) return true;
         if (pos.getY() <= PlotConfig.BEDROCK_Y) return false;                         // bedrock floor: never for players
-        PlotData data = PlotManager.owningPlot(pos.getX(), pos.getZ());               // cell or merge interior
         if (data == null) return false;                                               // stair/road/unclaimed: locked
         return data.canBuild(player.getUUID());
+    }
+
+    private static boolean pvpAllowed(ServerPlayer victim) {
+        PlotData plot = PlotManager.owningPlot(victim.getBlockX(), victim.getBlockZ());
+        return plot != null && plot.pvp;
+    }
+
+    /** Ownership check shared with the generic entity-damage mixin (arrows/item frames/etc.). */
+    public static boolean canModifyEntity(ServerPlayer player, BlockPos pos) {
+        return allowed(player, pos);
     }
 
     /** True if this op is currently in build-admin mode (toggled via /plot admin). */

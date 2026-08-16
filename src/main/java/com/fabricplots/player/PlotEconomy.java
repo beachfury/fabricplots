@@ -15,8 +15,8 @@ import java.math.BigInteger;
  *
  * The API is a compile-only dependency — it's provided at runtime only when the server also runs a
  * Common Economy provider (e.g. Savs Common Economy). Every public method is guarded so FabricPlots
- * behaves normally when the API/economy mod isn't installed: charges resolve to {@link Result#NO_ECONOMY}
- * (treated as "free" by callers) and refunds/format no-op. All API references live in the nested
+ * behaves safely when the API/economy mod isn't installed: charges resolve to {@link Result#NO_ECONOMY}
+ * (claims fail closed while economy is enabled) and refunds report failure. All API references live in the nested
  * {@code Bridge}, which is only class-loaded when a method is actually invoked, so a missing API can
  * never break class loading of the rest of the mod.
  */
@@ -25,17 +25,24 @@ public final class PlotEconomy {
 
     private PlotEconomy() {}
 
-    /** Take {@code amount} from the player. Callers treat NO_ECONOMY as free (fail-safe if no provider). */
+    /** Take {@code amount} from the player. NO_ECONOMY tells callers to refuse a paid claim. */
     public static Result charge(ServerPlayer player, long amount) {
         if (amount <= 0) return Result.CHARGED;
         try { return Bridge.charge(player, amount); }
-        catch (Throwable ignored) { return Result.NO_ECONOMY; }
+        catch (Throwable error) {
+            System.err.println("[FabricPlots] Economy charge unavailable: " + error);
+            return Result.NO_ECONOMY;
+        }
     }
 
-    /** Give money back (e.g. a refund on plot delete). No-op if economy is unavailable. */
-    public static void refund(ServerPlayer player, long amount) {
-        if (amount <= 0) return;
-        try { Bridge.refund(player, amount); } catch (Throwable ignored) { /* no economy */ }
+    /** Give money back. Returns false instead of claiming success when the provider is unavailable. */
+    public static boolean refund(ServerPlayer player, long amount) {
+        if (amount <= 0) return true;
+        try { return Bridge.refund(player, amount); }
+        catch (Throwable error) {
+            System.err.println("[FabricPlots] Economy refund unavailable: " + error);
+            return false;
+        }
     }
 
     /** Format an amount with the provider's currency, or fall back to a plain number. */
@@ -52,9 +59,9 @@ public final class PlotEconomy {
             return acc.decreaseBalance(amount).isSuccessful() ? Result.CHARGED : Result.INSUFFICIENT;
         }
 
-        static void refund(ServerPlayer player, long amount) {
+        static boolean refund(ServerPlayer player, long amount) {
             EconomyAccount acc = account(player);
-            if (acc != null) acc.increaseBalance(amount);
+            return acc != null && acc.increaseBalance(amount).isSuccessful();
         }
 
         static String format(ServerPlayer player, long amount) {
@@ -62,12 +69,14 @@ public final class PlotEconomy {
             return acc != null ? acc.currency().formatValue(BigInteger.valueOf(amount), false) : Long.toString(amount);
         }
 
-        /** The player's economy account for the configured currency (blank config = the provider's default). */
+        /** The configured account, or the only available account when no currency id was supplied. */
         static EconomyAccount account(ServerPlayer player) {
             String cid = PlotsConfig.economyCurrencyId;
             if (cid != null && !cid.isBlank()) return CommonEconomy.getAccount(player, Identifier.parse(cid));
             var accounts = CommonEconomy.getAccounts(player);
-            return accounts.isEmpty() ? null : accounts.iterator().next();
+            // With multiple currencies, "the first" is provider-order dependent and could charge
+            // the wrong wallet. Require an explicit id unless exactly one account exists.
+            return accounts.size() == 1 ? accounts.iterator().next() : null;
         }
     }
 }
