@@ -1,11 +1,10 @@
 # FabricPlots
 
-A **server-side**, PlotSquared-style plot world for **Fabric / Minecraft 26.1.2, 26.2 & 1.21.1**, built for **Java + Bedrock
+A **server-side**, PlotSquared-style plot world for **Fabric / Minecraft 26.1.2, 26.2, 26.3 & 1.21.1**, built for **Java + Bedrock
 crossplay** (Geyser/Floodgate). Nothing is required on the client — Bedrock players use every command and menu
 through Geyser. Drop the jar on the server and you have a full creative plot server.
 
-The current `26.2` branch builds **FabricPlots 1.0.1 for Minecraft 26.2**. This patch focuses on
-crash-resistant saves, stricter protection checks and tick-safe maintenance; see [CHANGELOG.md](CHANGELOG.md).
+The current `26.3` branch builds **FabricPlots 1.0.2 for Minecraft 26.3**; see [CHANGELOG.md](CHANGELOG.md).
 
 FabricPlots is server-side in behavior and does not need to be installed by connecting clients. It initializes
 on both dedicated servers and integrated single-player servers so local worlds can be used for testing.
@@ -148,7 +147,7 @@ editor writes is **ownership-checked**, so no edit can touch a road or a plot yo
 
 ## Requirements
 
-A Fabric server on **Minecraft 26.1.2, 26.2 or 1.21.1** (see [Versions](#versions)) with, in the `mods/` folder:
+A Fabric server on **Minecraft 26.1.2, 26.2, 26.3 or 1.21.1** (see [Versions](#versions)) with, in the `mods/` folder:
 
 | Mod | Notes |
 |-----|-------|
@@ -156,7 +155,7 @@ A Fabric server on **Minecraft 26.1.2, 26.2 or 1.21.1** (see [Versions](#version
 | **sgui** | **bundled inside FabricPlots since 1.0.0** — nothing to install (shown here for transparency) |
 | Fabric API | the build for your MC version |
 
-For Bedrock players: **Geyser** + **Floodgate** (Geyser connects directly to 26.1.x / 26.2 — no ViaProxy).
+For Bedrock players: **Geyser** + **Floodgate** (Geyser connects directly to 26.1.x+ — no ViaProxy).
 
 See **[SERVER-SETUP.md](SERVER-SETUP.md)** for the full deployment guide (config table, first-run notes, admin tips).
 
@@ -241,15 +240,16 @@ and needs the owner **online** — plots of offline owners use the plain config 
 ## Building from source
 
 Requires **JDK 25**. Minecraft 26.x ships unobfuscated (official Mojang names, no `mappings` line; uses the `jar`
-task, not `remapJar`). DraftSmith 1.0.1 is consumed from Maven Local, so publish its matching `26.2` branch
-first (keep the two repositories as siblings):
+task, not `remapJar`). DraftSmith 1.0.1 is consumed from Maven Local — this branch temporarily bundles the
+`26.2`-built DraftSmith until a `+26.3` build ships (see `draftsmith_mc` in `gradle.properties`), so publish
+DraftSmith's `26.2` branch first (keep the two repositories as siblings):
 
 ```bash
 (cd ../draftsmith && git switch 26.2 && ./gradlew publishToMavenLocal)
 ./gradlew build      # or: gradle build
 ```
 
-Output for this branch: `build/libs/fabricplots-1.0.1+26.2.jar`.
+Output for this branch: `build/libs/fabricplots-1.0.2+26.3.jar`.
 
 ## Versions
 
@@ -260,6 +260,7 @@ numbers, toolchain (1.21.1 is obfuscated: JDK 21 + mojmap) and a few renamed van
 |--------|-----------|------------|------------|------|
 | [`main`](../../tree/main) | 26.1.2 | `0.145.4+26.1.2` | `1.0.1+26.1.2` | `2.0.0+26.1` |
 | [`26.2`](../../tree/26.2) | 26.2 | `0.153.0+26.2` | `1.0.1+26.2` | `2.1.0+26.2` |
+| [`26.3`](../../tree/26.3) | 26.3 | `0.161.0+26.3` | `1.0.1+26.2` (temporary) | `2.2.0+26.3` (bundled) |
 | [`1.21.1`](../../tree/1.21.1) | 1.21.1 | `0.116.15+1.21.1` | `1.0.1+1.21.1` | `1.6.1+1.21.1` |
 
 ## License
