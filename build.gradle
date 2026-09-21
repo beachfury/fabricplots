@@ -39,12 +39,10 @@ implementation "eu.pb4:sgui:${project.sgui_version}"
 include "eu.pb4:sgui:${project.sgui_version}"
 
     // The build editor (shapes, brushes, measure, clipboard, undo) — our own DraftSmith mod,
-    // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing.
-    // TODO TEMPORARY: bundling the 26.2-built DraftSmith 1.0.1 until DraftSmith ships a +26.3
-    // build — editor may break at runtime if 26.3 renamed APIs DraftSmith uses; swap
-    // draftsmith_mc back to ${minecraft_version} then (gradle.properties).
-    implementation "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.draftsmith_mc}"
-    include "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.draftsmith_mc}"
+    // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing. The +MC suffix
+    // tracks this branch's minecraft_version.
+    implementation "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
+    include "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
 
     // Optional economy integration — Patbox's Common Economy API (same maven as sgui). compileOnly:
     // NOT bundled and NOT required. It's provided at runtime only if the server runs a Common Economy

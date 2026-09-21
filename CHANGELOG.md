@@ -10,8 +10,7 @@ Minecraft 26.3 support.
 - **Built for Minecraft 26.3** (Fabric API 0.161.0+26.3, loader 0.19.5, sgui 2.2.0+26.3 bundled).
   Adapted to the 26.3 sign API (`SignTextSlot` enum + immutable `SignText`) and migrated the plot
   biome to the new `natural_mob_spawns` biome-attribute format (natural spawning stays disabled).
-- **Bundled editor:** this build temporarily ships the 26.2-built DraftSmith 1.0.1; a DraftSmith
-  build for 26.3 follows shortly.
+- **Bundled editor:** ships DraftSmith 1.0.1 built for 26.3.
 
 ## [1.0.1] — 2026-08-16
 
