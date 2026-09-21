@@ -39,10 +39,12 @@ implementation "eu.pb4:sgui:${project.sgui_version}"
 include "eu.pb4:sgui:${project.sgui_version}"
 
     // The build editor (shapes, brushes, measure, clipboard, undo) — our own DraftSmith mod,
-    // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing. The +MC suffix
-    // tracks this branch's minecraft_version automatically.
-    implementation "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
-    include "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.minecraft_version}"
+    // extracted from 0.4.0. Jar-in-Jar bundled, so plot users notice nothing.
+    // TODO TEMPORARY: bundling the 26.2-built DraftSmith 1.0.1 until DraftSmith ships a +26.3
+    // build — editor may break at runtime if 26.3 renamed APIs DraftSmith uses; swap
+    // draftsmith_mc back to ${minecraft_version} then (gradle.properties).
+    implementation "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.draftsmith_mc}"
+    include "com.draftsmith:draftsmith:${project.draftsmith_version}+${project.draftsmith_mc}"
 
     // Optional economy integration — Patbox's Common Economy API (same maven as sgui). compileOnly:
     // NOT bundled and NOT required. It's provided at runtime only if the server runs a Common Economy
@@ -51,7 +53,7 @@ include "eu.pb4:sgui:${project.sgui_version}"
 
     // Optional Placeholder API integration (same maven). compileOnly: %fabricplots:*% placeholders
     // register only when the placeholder-api mod is present at runtime.
-    compileOnly "eu.pb4:placeholder-api:3.1.0-beta.1+26.2"
+    compileOnly "eu.pb4:placeholder-api:3.2.0+26.3"
 
     // Optional permissions integration — fabric-permissions-api (the check API LuckPerms and
     // friends implement). compileOnly, same as DraftSmith: nodes activate only when a permissions
