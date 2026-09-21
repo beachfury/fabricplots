@@ -17,6 +17,7 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 
 import java.util.Map;
 
@@ -53,15 +54,18 @@ public final class Compat {
 
     // ---- sign text (measuring tape numbers) --------------------------------
     // SignText API is stable since 1.20, but setText/getText signatures have moved before.
+    // 26.3: the boolean front/back flag became the SignTextSlot enum (FRONT/BACK), and SignText
+    // went immutable — edits go through asMutable().setLine/setColor/setTextGlowing.asImmutable().
 
     /** Write {@code text} on both faces of the sign at pos — black dye + glow ink, waxed. */
     public static void labelSign(ServerLevel level, BlockPos pos, String text) {
         if (level.getBlockEntity(pos) instanceof SignBlockEntity sbe) {
             Component c = Component.literal(text);
-            sbe.setText(sbe.getText(true).setMessage(1, c)
-                    .setColor(DyeColor.BLACK).setHasGlowingText(true), true);
-            sbe.setText(sbe.getText(false).setMessage(1, c)
-                    .setColor(DyeColor.BLACK).setHasGlowingText(true), false);
+            for (SignTextSlot slot : SignTextSlot.values()) {
+                sbe.setText(sbe.getText(slot).asMutable()
+                        .setLine(1, c).setColor(DyeColor.BLACK).setTextGlowing(true)
+                        .asImmutable(), slot);
+            }
             sbe.setWaxed(true); // nobody should be able to edit the numbers
             sbe.setChanged();
             level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), Block.UPDATE_CLIENTS);
