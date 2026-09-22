@@ -16,7 +16,6 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Deque;
@@ -116,20 +115,11 @@ public abstract class DraftEditSafetyMixin {
                 write.pos().getX(), write.pos().getY(), write.pos().getZ()));
     }
 
-    /** The selection set/replace path writes directly rather than through commit. */
-    @Redirect(
-            method = "applyEdit(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/server/level/ServerLevel;Ljava/util/function/BiPredicate;Ljava/util/function/Supplier;Ljava/lang/String;)I",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Z")
-    )
-    private static boolean fabricplots$safeSelectionWrite(ServerLevel level, BlockPos pos, BlockState state, int flags,
-                                                            ServerPlayer player, ServerLevel ignoredLevel,
-                                                            BiPredicate<ServerLevel, BlockPos> include,
-                                                            Supplier<BlockState> material, String verb) {
-        boolean admin = DraftSmithApi.access().isAdmin(player);
-        if (unsafe(level, pos, state)
-                || !DraftSmithApi.access().canEdit(player, admin, pos.getX(), pos.getY(), pos.getZ())) return false;
-        return level.setBlock(pos, state, flags);
-    }
+    // NOTE: this mixin's setBlock @Redirect into applyEdit is GONE on purpose. It was written
+    // against DraftSmith 1.0.0, whose applyEdit wrote blocks with a raw ServerLevel.setBlock;
+    // DraftSmith 1.0.1 guards those writes natively (unsafeWrite: block-entity + access checks),
+    // so the target instruction no longer exists and the redirect hard-crashed every launch
+    // ("Scanned 0 target(s)"). The HEAD injects above stay as redundant belt-and-suspenders.
 
     /**
      * Undo/redo in DraftSmith 1.0 did not re-check the access provider. Cancel the whole step
