@@ -2,6 +2,13 @@
 
 All notable changes to FabricPlots. `/plot version` reports the version embedded in the running jar.
 
+## [1.0.2] — 2026-09-22
+
+Compatibility patch.
+
+### Fixed
+- **Startup crash with standalone DraftSmith 1.0.1+.** FabricPlots 1.0.1's safety mixin targeted an internal detail of DraftSmith 1.0.0; installing a newer standalone DraftSmith alongside FabricPlots made the game crash on launch. The mixin now relies on DraftSmith 1.0.1's own built-in write guards (the remaining checks stay as redundant protection). This build also bundles DraftSmith 1.0.1.
+
 ## [1.0.1] — 2026-08-16
 
 The safety and reliability update for Minecraft 1.21.1.
