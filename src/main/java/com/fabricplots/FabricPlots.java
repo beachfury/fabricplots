@@ -120,9 +120,10 @@ public final class FabricPlots implements ModInitializer {
         rules.getRule(GameRules.RULE_DAYLIGHT).set(PlotsConfig.advanceTime, server);
         rules.getRule(GameRules.RULE_WEATHER_CYCLE).set(PlotsConfig.advanceWeather, server);
         // Build-protection flags (a flag = true means "protect", so the matching gamerule is turned OFF).
-        // NOTE(1.21.1): there is no tntExplodes gamerule on this version (26.x addition) — TNT block
-        // damage can't be turned off via gamerule here. The protect-explosions config still bans the
-        // worst offenders (respawn anchors / end crystals) through PlotProtection.
+        // NOTE(1.21.1): there is no tntExplodes gamerule on this version (26.x addition) — the
+        // protect-explosions config is enforced by TntProtectionMixin / TntMinecartProtectionMixin
+        // instead (lit TNT fizzles in the plot world), and respawn anchors / end crystals stay banned
+        // through PlotProtection.
         rules.getRule(GameRules.RULE_MOBGRIEFING).set(!PlotsConfig.protectMobGriefing, server);
         rules.getRule(GameRules.RULE_PROJECTILESCANBREAKBLOCKS).set(!PlotsConfig.protectProjectiles, server);
         rules.getRule(GameRules.RULE_DOFIRETICK).set(!PlotsConfig.protectFire, server);
