@@ -9,7 +9,9 @@
     "DraftEditSafetyMixin",
     "DraftEditAccessor",
     "DraftShapesSafetyMixin",
-    "EntityDamageProtectionMixin"
+    "EntityDamageProtectionMixin",
+    "TntProtectionMixin",
+    "TntMinecartProtectionMixin"
   ],
   "injectors": {
     "defaultRequire": 1
