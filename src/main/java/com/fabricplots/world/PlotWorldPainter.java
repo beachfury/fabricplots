@@ -143,7 +143,7 @@ public final class PlotWorldPainter {
     private static final boolean BENCHES = false;
 
     // NOTE(1.21.1): there is no CHUNK_GENERATE event on this Fabric API (26.x addition), so there is
-    // no onGenerate here — roads are painted together with the furniture in processPending, on a
+    // no onGenerate here — roads are painted straight into the chunk in onChunkLoad instead, on a
     // chunk's first-ever load (tracked by the persisted decorated-chunks record).
 
     /** Advance a bounded number of queued world columns. Called once per server tick. */
@@ -417,13 +417,37 @@ public final class PlotWorldPainter {
         }
     }
 
-    /** A plots chunk loaded — queue it; the actual furniture goes down a tick later (see processPending). */
+    /**
+     * A plots chunk loaded. On its first load the roads are written straight into the chunk (same
+     * as the 26.x CHUNK_GENERATE path) and the chunk is queued for furniture (see processPending).
+     *
+     * <p>Don't paint the base through level.setBlock: the neighbour shape updates on a chunk's edge
+     * sync-load the next chunk over, which then gets queued and painted too, and the plot world
+     * keeps loading chunks outward until the watchdog kills the server.
+     */
     public static void onChunkLoad(ServerLevel level, LevelChunk chunk) {
         if (level.dimension() != FabricPlots.PLOTS_DIM) return;
         final int cx = chunk.getPos().getMinBlockX() >> 4;
         final int cz = chunk.getPos().getMinBlockZ() >> 4;
         final long key = (((long) cx) << 32) | (cz & 0xFFFFFFFFL);
-        if (!DECORATED.contains(key)) PENDING.add(key);
+        if (DECORATED.contains(key)) return;
+        if (!DISABLE_PAINTER) {
+            final int baseX = chunk.getPos().getMinBlockX();
+            final int baseZ = chunk.getPos().getMinBlockZ();
+            final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            final Setter setter = (x, y, z, s) -> { pos.set(x, y, z); chunk.setBlockState(pos, s, false); };
+            try {
+                for (int dx = 0; dx < 16; dx++)
+                    for (int dz = 0; dz < 16; dz++) paintBase(baseX + dx, baseZ + dz, setter, false);
+            } catch (Throwable t) {
+                if (!loggedError) {
+                    loggedError = true;
+                    System.out.println("[FabricPlots] painter error during CHUNK_LOAD: " + t);
+                    t.printStackTrace();
+                }
+            }
+        }
+        PENDING.add(key);
     }
 
     /** Called each server tick: decorate a few queued chunks via level.setBlock (chunk is now live + sent). */
@@ -439,10 +463,6 @@ public final class PlotWorldPainter {
             final int baseX = ((int) (key >> 32)) << 4;
             final int baseZ = ((int) (long) key) << 4;
             try {
-                // 1.21.1: base painting happens here too (no CHUNK_GENERATE event on this version) —
-                // the flat generator made plain grass, so carve the roads on the chunk's first load.
-                for (int dx = 0; dx < 16; dx++)
-                    for (int dz = 0; dz < 16; dz++) paintBase(baseX + dx, baseZ + dz, setter, false);
                 for (int dx = 0; dx < 16; dx++)
                     for (int dz = 0; dz < 16; dz++) decorate(baseX + dx, baseZ + dz, setter);
             } catch (Throwable t) {
